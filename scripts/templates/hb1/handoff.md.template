@@ -1,0 +1,10 @@
+# HB1 changes for the __RESOURCE__ workflow
+
+Use `docs/handoff/hb1-workflow1-user-lookup.md` (Helm repo) as the reference. For this workflow:
+
+1. Run `grep -n __VERB__ app/admin/__RESOURCES__.rb` to locate the existing action.
+2. Extract its body into `app/services/__PACK__/__RESOURCES__/__VERB__.rb` (use `scripts/templates/hb1/service.rb.template` from the Helm repo, find/replace placeholders).
+3. Add the POST route to `app/api/rpa_api/v1/__RESOURCES__/_api.rb` (use `scripts/templates/hb1/rpa_api.rb.template`).
+4. Create the result entity (use `scripts/templates/hb1/entity.rb.template`).
+5. Replace the admin action body with a call to the new service.
+6. Run `bundle exec rspec spec/services/__PACK__/__RESOURCES__/__VERB___spec.rb spec/requests/api/rpa_api/v1/__RESOURCES___api_spec.rb`.

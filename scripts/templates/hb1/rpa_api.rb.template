@@ -1,0 +1,19 @@
+# Drop this into app/api/rpa_api/v1/__RESOURCES__/_api.rb or extend the existing file.
+# Find/replace: __RESOURCE__ (singular), __RESOURCES__ (plural), __VERB__ (action name).
+
+module RpaApi
+  module V1
+    class __RESOURCES_CAMEL__Api < ::Grape::API
+      resource :__RESOURCES__ do
+        route_param :id, type: Integer do
+          desc "__VERB_HUMAN__ for __RESOURCE__"
+          post :__VERB__ do
+            obj    = __RESOURCE_CAMEL__.find(params[:id])
+            result = __PACK_CAMEL__::__RESOURCES_CAMEL__::__VERB_CAMEL__.call(__RESOURCE__: obj)
+            present(result, with: Entities::__VERB_CAMEL__Result)
+          end
+        end
+      end
+    end
+  end
+end

@@ -1,0 +1,31 @@
+# Drop this into app/services/__PACK__/__RESOURCES__/__VERB__.rb
+# Find/replace: __PACK__, __PACK_CAMEL__, __RESOURCES__, __RESOURCES_CAMEL__,
+#               __RESOURCE__, __RESOURCE_CAMEL__, __VERB__, __VERB_CAMEL__
+
+module __PACK_CAMEL__
+  module __RESOURCES_CAMEL__
+    class __VERB_CAMEL__
+      Result = Struct.new(:performed_at, :provider_request_id, keyword_init: true)
+
+      def self.call(__RESOURCE__:)
+        new(__RESOURCE__).call
+      end
+
+      def initialize(__RESOURCE__)
+        @__RESOURCE__ = __RESOURCE__
+      end
+
+      def call
+        # PASTE the existing logic from app/admin/__RESOURCES__.rb's `__VERB__` member_action here.
+        # Replace local `__RESOURCE__` references with `@__RESOURCE__`. Capture whatever the underlying
+        # implementation returns and surface it on Result. ActiveAdmin's action body should
+        # become a single `__PACK_CAMEL__::__RESOURCES_CAMEL__::__VERB_CAMEL__.call(__RESOURCE__: resource)`.
+
+        Result.new(
+          performed_at:        Time.current,
+          provider_request_id: nil
+        )
+      end
+    end
+  end
+end

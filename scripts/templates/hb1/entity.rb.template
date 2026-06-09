@@ -1,0 +1,15 @@
+# Drop this into app/api/rpa_api/v1/entities/__VERB___result.rb
+# Find/replace: __VERB__, __VERB_CAMEL__
+
+module RpaApi
+  module V1
+    module Entities
+      class __VERB_CAMEL__Result < Grape::Entity
+        expose :performed_at do |obj|
+          obj.performed_at.iso8601
+        end
+        expose :provider_request_id
+      end
+    end
+  end
+end
