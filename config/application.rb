@@ -14,6 +14,9 @@ module Helm
 
     config.api_only = true
 
+    require Rails.root.join("app/middleware/demo_identity")
+    config.middleware.use DemoIdentity
+
     config.generators do |g|
       g.test_framework :rspec, fixtures: false, view_specs: false, helper_specs: false,
                                routing_specs: false, controller_specs: true, request_specs: true
