@@ -30,13 +30,22 @@ module HelmApi
             present obj, with: Entities::Location, role: current_principal
           end
 
-          # Per-workflow writes go here. Each should:
-          # 1. check_permission!("<domain>.<verb>_<resource>", scope: ...)
-          # 2. Call Hb1Client::Locations.<method>(...)
-          # 3. AuditService.record(actor: lookup_admin_user!, workflow: "location_management",
-          #                        action: "location.<verb>", resource_type: "Location",
-          #                        resource_id: params[:id], payload_after: { ... })
-          # 4. present result, with: Entities::<SomeResultEntity>
+          post :archive_jobs do
+            check_permission!("account.archive_location_jobs", scope: { location_id: params[:id] })
+            result = Hb1Client::Locations.archive_jobs(params[:id])
+            AuditService.record(
+              actor:         lookup_admin_user!,
+              workflow:      "location_management",
+              action:        "location.jobs_archived",
+              resource_type: "Location",
+              resource_id:   params[:id],
+              payload_after: {
+                archived_job_count: result["archived_job_count"],
+                archived_at:        result["archived_at"]
+              }
+            )
+            present result, with: Entities::ArchiveJobsResult
+          end
         end
       end
     end

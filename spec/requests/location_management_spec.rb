@@ -37,6 +37,36 @@ RSpec.describe "Helm LocationsApi" do
     end
   end
 
-  # Add a permission-denial test, an audit test, and an endpoint-integration test for each
-  # per-workflow write — mirror spec/requests/users_spec.rb from Workflow 1.
+  describe "POST /helm_api/v1/locations/:id/archive_jobs" do
+    let(:hb1_result) { { "archived_job_count" => 17, "archived_at" => "2026-06-09T17:00:00Z" } }
+
+    before do
+      AdminUser.find_or_create_by!(email: "eng_super@helm.local") do |u|
+        u.full_name = "Eng Super"; u.role = "eng_super"
+      end
+    end
+
+    it "403s for cs_t1_agent (lacks archive_location_jobs)" do
+      post "#{base}/42/archive_jobs", headers: { "Cookie" => "HELM_DEMO_ROLE=cs_t1_agent" }
+      expect(response).to have_http_status(403)
+    end
+
+    it "200s for eng_super and writes one audit event with archived_job_count" do
+      stub_request(:post, "https://hb1.test/api/rpa_api/v1/locations/42/archive_jobs")
+        .to_return(status: 201, body: hb1_result.to_json,
+                   headers: { "Content-Type" => "application/json" })
+
+      expect {
+        post "#{base}/42/archive_jobs", headers: { "Cookie" => "HELM_DEMO_ROLE=eng_super" }
+      }.to change(AuditEvent, :count).by(1)
+
+      expect(response).to have_http_status(:ok).or have_http_status(:created)
+      body = JSON.parse(response.body)
+      expect(body).to eq("archived_job_count" => 17, "archived_at" => "2026-06-09T17:00:00Z")
+
+      event = AuditEvent.last
+      expect(event.action).to        eq("location.jobs_archived")
+      expect(event.payload_after).to eq("archived_job_count" => 17, "archived_at" => "2026-06-09T17:00:00Z")
+    end
+  end
 end
