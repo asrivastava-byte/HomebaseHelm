@@ -23,6 +23,7 @@ module HelmApi
       mount HelmApi::V1::AuditsApi
       mount HelmApi::V1::UsersApi
       mount HelmApi::V1::CompaniesApi
+      mount HelmApi::V1::LocationsApi
     end
   end
 end

@@ -1,0 +1,19 @@
+module Entities
+  class Location < Grape::Entity
+    PII_FIELDS = %w[].freeze # add PII field names here as the workflow needs them
+
+    expose(:id)         { |obj| obj["id"]         || obj[:id] }
+    expose(:name)       { |obj| obj["name"]       || obj[:name] }
+    expose(:created_at) { |obj| obj["created_at"] || obj[:created_at] }
+
+    # When PII fields are added, wrap them like Plan 2's User entity:
+    #
+    # with_options(if: ->(_obj, opts) { opts[:role]&.can?("account.view_pii") }) do
+    #   expose(:phone) { |obj| obj["phone"] || obj[:phone] }
+    # end
+
+    expose :_redacted do |_obj, opts|
+      opts[:role]&.can?("account.view_pii") ? [] : PII_FIELDS
+    end
+  end
+end
