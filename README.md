@@ -1,24 +1,34 @@
-# README
+# Helm
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+Admin-panel replacement BFF + React UI. Reads from HB1 via REST, applies role-based permissions from
+a single YAML file, and audits every write.
 
-Things you may want to cover:
+## Quick start
 
-* Ruby version
+```bash
+bin/setup        # bundle, db:prepare, seed 9 demo admin_users, bun install
+bin/dev          # rails on :3001, vite on :5173 (via foreman + Procfile.dev)
+```
 
-* System dependencies
+Open <http://localhost:5173>.
 
-* Configuration
+## Demo role switching
 
-* Database creation
+The top-right dropdown writes a `HELM_DEMO_ROLE` cookie. The Rails `DemoIdentity` middleware reads
+it on every request and sets `request.env[:helm_principal]`. Production swaps this for Stytch JWT —
+the contract (`env[:helm_principal]`) is unchanged.
 
-* Database initialization
+## Editing permissions
 
-* How to run the test suite
+Edit `config/permissions.yml`. Restart Rails. The UI re-reads role permissions on next page load.
 
-* Services (job queues, cache servers, search engines, etc.)
+## Tests
 
-* Deployment instructions
+```bash
+bundle exec rspec                  # backend
+(cd client-helm && bun run test)   # frontend
+```
 
-* ...
+## Plans
+
+See `docs/superpowers/plans/` for the implementation plans.
