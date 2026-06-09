@@ -25,18 +25,40 @@ module HelmApi
 
         route_param :id, type: Integer do
           get do
-            check_permission!("account.view_company", scope: { id: params[:id] })
-            obj = Hb1Client::Companies.show(params[:id])
-            present obj, with: Entities::Company, role: current_principal
+            check_permission!("account.view_company", scope: { company_id: params[:id] })
+            company = Hb1Client::Companies.show(params[:id])
+            present company, with: Entities::Company, role: current_principal
           end
 
-          # Per-workflow writes go here. Each should:
-          # 1. check_permission!("<domain>.<verb>_<resource>", scope: ...)
-          # 2. Call Hb1Client::Companies.<method>(...)
-          # 3. AuditService.record(actor: lookup_admin_user!, workflow: "company_merchant",
-          #                        action: "company.<verb>", resource_type: "Company",
-          #                        resource_id: params[:id], payload_after: { ... })
-          # 4. present result, with: Entities::<SomeResultEntity>
+          get :merchant_profile do
+            check_permission!("account.view_merchant_profile", scope: { company_id: params[:id] })
+            profile = Hb1Client::Companies.merchant_profile(params[:id])
+            present profile, with: Entities::MerchantProfile, role: current_principal
+          end
+
+          params do
+            requires :to_tier, type: String
+          end
+          post :billing_tier do
+            check_permission!("billing.update_subscription_tier", scope: { company_id: params[:id] })
+
+            company   = Hb1Client::Companies.show(params[:id])
+            from_tier = company["tier"]
+
+            result = Hb1Client::Companies.change_billing_tier(params[:id], to_tier: params[:to_tier])
+
+            AuditService.record(
+              actor:          lookup_admin_user!,
+              workflow:       "company_merchant",
+              action:         "company.billing_tier_changed",
+              resource_type:  "Company",
+              resource_id:    params[:id],
+              payload_before: { tier: from_tier },
+              payload_after:  { tier: result["to_tier"] }
+            )
+
+            present result, with: Entities::BillingTierChange
+          end
         end
       end
     end
