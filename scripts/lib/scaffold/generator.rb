@@ -55,6 +55,10 @@ module Scaffold
 
     def append_permissions!
       yml = File.join(@root, "config/permissions.yml")
+      unless File.exist?(yml)
+        warn "[scaffold] config/permissions.yml not found at #{yml} — skipping append. Add #{@n.permission_view_key} manually."
+        return
+      end
       PermissionsYaml.new(yml).append!(
         new_permissions: [{ key: @n.permission_view_key, scope: scope_for(@n.resource_singular) }]
       )
