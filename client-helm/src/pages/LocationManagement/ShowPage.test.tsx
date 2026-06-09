@@ -20,19 +20,31 @@ function wrap(ui: React.ReactNode, role: string, permissions: string[]) {
   );
 }
 
+const detail = { id: 42, name: "Main Street", created_at: "2026-06-09T00:00:00Z", _redacted: [] };
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());
 });
 
 describe("LocationManagementShowPage", () => {
-  it("renders the resource's basic fields", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => ({ id: 42, name: "Demo", created_at: "2026-06-09T00:00:00Z", _redacted: [] }),
-    } as Response);
-
+  it("renders the location name", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: async () => detail } as Response);
     render(wrap(<LocationManagementShowPage />, "cs_t1_agent", ["account.view_location"]));
+    await waitFor(() => expect(screen.getByText("Main Street")).toBeInTheDocument());
+  });
 
-    await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
+  it("hides Archive jobs for cs_t1_agent", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: async () => detail } as Response);
+    render(wrap(<LocationManagementShowPage />, "cs_t1_agent", ["account.view_location"]));
+    await waitFor(() => expect(screen.getByText("Main Street")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: /archive jobs/i })).not.toBeInTheDocument();
+  });
+
+  it("shows Archive jobs for eng_super", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: async () => detail } as Response);
+    render(wrap(<LocationManagementShowPage />, "eng_super",
+      ["account.view_location", "account.archive_location_jobs"]));
+    await waitFor(() => expect(screen.getByText("Main Street")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /archive jobs/i })).toBeInTheDocument();
   });
 });
