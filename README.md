@@ -34,7 +34,7 @@ bundle exec rspec                  # backend
 | # | Workflow         | Status                                                                 |
 |---|------------------|------------------------------------------------------------------------|
 | 1 | User lookup      | Built (Helm side). Live demo blocked on HB1 changes — see [hb1 handoff](docs/handoff/hb1-workflow1-user-lookup.md). |
-| 2 | Company/Merchant | Not started                                                            |
+| 2 | Company/Merchant | Built (Helm side). Live demo blocked on HB1 — see [hb1 handoff](docs/handoff/hb1-workflow2-company-merchant.md). |
 | 3 | Location         | Not started                                                            |
 
 ## HB1 dependency
