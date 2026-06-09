@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+require_relative "../config/environment"
+
+roles = %w[cs_t1_agent cs_t2_payroll cs_t2_payments cs_t2_escalations
+           cs_t3_ops cs_t4_leadership eng_general eng_super eng_power]
+
+roles.each do |role|
+  AdminUser.find_or_create_by!(email: "#{role}@helm.local") do |u|
+    u.full_name = role.split("_").map(&:capitalize).join(" ")
+    u.role      = role
+  end
+end
+
+puts "Seeded #{AdminUser.count} admin_users across #{roles.size} roles."

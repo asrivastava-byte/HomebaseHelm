@@ -1,0 +1,2 @@
+rails: bin/rails server -p 3001
+vite:  cd client-helm && bun run dev
