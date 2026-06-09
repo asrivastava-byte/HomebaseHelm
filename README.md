@@ -29,6 +29,20 @@ bundle exec rspec                  # backend
 (cd client-helm && bun run test)   # frontend
 ```
 
+## Workflows
+
+| # | Workflow         | Status                                                                 |
+|---|------------------|------------------------------------------------------------------------|
+| 1 | User lookup      | Built (Helm side). Live demo blocked on HB1 changes — see [hb1 handoff](docs/handoff/hb1-workflow1-user-lookup.md). |
+| 2 | Company/Merchant | Not started                                                            |
+| 3 | Location         | Not started                                                            |
+
+## HB1 dependency
+
+For workflows to work against a real HB1, set `HB1_API_BASE_URL` and `HB1_API_TOKEN` in `.env`
+and ship the HB1 changes described in `docs/handoff/hb1-workflow1-user-lookup.md`. Until then,
+local development still works — the BFF returns whatever HB1 returns, and request specs use WebMock.
+
 ## Plans
 
 See `docs/superpowers/plans/` for the implementation plans.
