@@ -8,7 +8,7 @@ module Scaffold
     HELM_TEMPLATES = [
       ["helm/entity.rb.erb",          ->(n) { "app/api/entities/#{n.resource_singular}.rb" }],
       ["helm/hb1_client.rb.erb",      ->(n) { "app/services/hb1_client/#{n.resource_plural}.rb" }],
-      ["helm/api.rb.erb",             ->(n) { "app/api/helm_api/v1/#{n.workflow_snake}_api.rb" }],
+      ["helm/api.rb.erb",             ->(n) { "app/api/helm_api/v1/#{n.resource_plural}_api.rb" }],
       ["helm/request_spec.rb.erb",    ->(n) { "spec/requests/#{n.workflow_snake}_spec.rb" }],
       ["helm/entity_spec.rb.erb",     ->(n) { "spec/entities/#{n.resource_singular}_spec.rb" }],
       ["helm/hb1_client_spec.rb.erb", ->(n) { "spec/services/hb1_client/#{n.resource_plural}_spec.rb" }],

@@ -36,7 +36,7 @@ RSpec.describe Scaffold::Generator do
       described_class.new(root: dir, naming: n).run!
 
       expect(File).to exist(File.join(dir, "app", "api", "entities", "company.rb"))
-      expect(File).to exist(File.join(dir, "app", "api", "helm_api", "v1", "company_merchant_api.rb"))
+      expect(File).to exist(File.join(dir, "app", "api", "helm_api", "v1", "companies_api.rb"))
       expect(File).to exist(File.join(dir, "app", "services", "hb1_client", "companies.rb"))
       expect(File).to exist(File.join(dir, "spec", "entities", "company_spec.rb"))
       expect(File).to exist(File.join(dir, "spec", "requests", "company_merchant_spec.rb"))
@@ -84,7 +84,7 @@ RSpec.describe Scaffold::Generator do
       stage(dir)
       n = Scaffold::Naming.new(workflow: "user_lookup", resource: "user")
       described_class.new(root: dir, naming: n).run!
-      api = File.read(File.join(dir, "app", "api", "helm_api", "v1", "user_lookup_api.rb"))
+      api = File.read(File.join(dir, "app", "api", "helm_api", "v1", "users_api.rb"))
       expect(api).to include("class UsersApi < Grape::API")
       expect(api).to include("resource :users")
       expect(api).to include("check_permission!(\"account.view_user\"")
