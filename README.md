@@ -43,6 +43,28 @@ For workflows to work against a real HB1, set `HB1_API_BASE_URL` and `HB1_API_TO
 and ship the HB1 changes described in `docs/handoff/hb1-workflow1-user-lookup.md`. Until then,
 local development still works — the BFF returns whatever HB1 returns, and request specs use WebMock.
 
+## Scaffolding a new workflow
+
+When a pack team wants to migrate a workflow from ActiveAdmin into Helm:
+
+```bash
+scripts/scaffold-workflow.rb <workflow_snake> <resource_snake>
+# e.g.
+scripts/scaffold-workflow.rb company_merchant company
+```
+
+This stamps out entity / Hb1Client / BFF API / React pages / specs / handoff doc, and appends
+`account.view_<resource>` to `config/permissions.yml` (idempotently). HB1-side `.template`
+files land in `tmp/hb1-out/<workflow>/`.
+
+Then follow `docs/handoff/<workflow>.md`. The fully-worked example lives in `docs/handoff/user_lookup.md`.
+
+## Handoff docs
+
+- `docs/handoff/TEMPLATE.md` — the per-team migration checklist
+- `docs/handoff/user_lookup.md` — Workflow 1 worked example
+- `docs/handoff/hb1-workflow1-user-lookup.md` — HB1 changes required for Workflow 1
+
 ## Plans
 
 See `docs/superpowers/plans/` for the implementation plans.
