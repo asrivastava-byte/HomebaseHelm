@@ -18,6 +18,8 @@ module HelmApi
           { ok: true }
         end
       end
+
+      mount HelmApi::V1::SessionApi
     end
   end
 end
