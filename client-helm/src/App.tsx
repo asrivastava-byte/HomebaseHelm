@@ -1,12 +1,18 @@
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Button, Stack, Typography } from "@mui/material";
+import { Route, Routes, Link as RouterLink, Navigate } from "react-router-dom";
 import { PermissionProvider, useSession } from "./lib/permissions";
 import { RoleSwitcher } from "./components/RoleSwitcher";
+import { UserLookupIndexPage } from "./pages/UserLookup/IndexPage";
+import { UserLookupShowPage } from "./pages/UserLookup/ShowPage";
 
 function Header() {
   const { role } = useSession();
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" p={2}>
-      <Typography variant="h5">Helm</Typography>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" p={2} borderBottom="1px solid #eee">
+      <Stack direction="row" spacing={3} alignItems="center">
+        <Typography variant="h5">Helm</Typography>
+        <Button component={RouterLink} to="/users" size="small">User lookup</Button>
+      </Stack>
       <Stack direction="row" spacing={2} alignItems="center">
         <Typography color="text.secondary">role: {role}</Typography>
         <RoleSwitcher />
@@ -21,7 +27,11 @@ export default function App() {
       <Box>
         <Header />
         <Box p={4}>
-          <Typography>Workflow pages ship in Plan 2.</Typography>
+          <Routes>
+            <Route path="/" element={<Navigate to="/users" replace />} />
+            <Route path="/users"        element={<UserLookupIndexPage />} />
+            <Route path="/users/:id"    element={<UserLookupShowPage />} />
+          </Routes>
         </Box>
       </Box>
     </PermissionProvider>
