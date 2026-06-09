@@ -21,6 +21,7 @@ module HelmApi
 
       mount HelmApi::V1::SessionApi
       mount HelmApi::V1::AuditsApi
+      mount HelmApi::V1::UsersApi
     end
   end
 end
