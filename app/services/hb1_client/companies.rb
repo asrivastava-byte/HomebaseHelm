@@ -8,7 +8,12 @@ module Hb1Client
       Base.get("/api/rpa_api/v1/companies", params: { q: query })
     end
 
-    # Add per-workflow writes here, mirroring Workflow 1's send_verification_sms /
-    # issue_impersonation_token methods. Each is a `Base.post(...)` returning the parsed body.
+    def self.merchant_profile(id)
+      Base.get("/api/rpa_api/v1/companies/#{id}/merchant_profile")
+    end
+
+    def self.change_billing_tier(id, to_tier:)
+      Base.post("/api/rpa_api/v1/companies/#{id}/billing_tier", body: { to_tier: to_tier })
+    end
   end
 end
