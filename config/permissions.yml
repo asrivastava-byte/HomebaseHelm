@@ -1,0 +1,89 @@
+permissions:
+  - { key: account.view_user,                  scope: human }
+  - { key: account.view_pii,                   scope: human }
+  - { key: account.verify_phone,               scope: human }
+  - { key: account.impersonate_user,           scope: human }
+  - { key: account.view_company,               scope: company }
+  - { key: account.view_merchant_profile,      scope: company }
+  - { key: billing.update_subscription_tier,   scope: company }
+  - { key: account.view_location,              scope: location }
+  - { key: account.archive_location_jobs,      scope: location }
+
+roles:
+  cs_t1_agent:
+    permissions:
+      - account.view_user
+      - account.verify_phone
+      - account.view_company
+      - account.view_merchant_profile
+      - account.view_location
+
+  cs_t2_payroll:
+    permissions:
+      - account.view_user
+      - account.view_pii
+      - account.verify_phone
+      - account.view_company
+      - account.view_merchant_profile
+      - account.view_location
+
+  cs_t2_payments:
+    permissions:
+      - account.view_user
+      - account.view_pii
+      - account.verify_phone
+      - account.view_company
+      - account.view_merchant_profile
+      - billing.update_subscription_tier
+      - account.view_location
+
+  cs_t2_escalations:
+    permissions:
+      - account.view_user
+      - account.view_pii
+      - account.verify_phone
+      - account.impersonate_user
+      - account.view_company
+      - account.view_merchant_profile
+      - account.view_location
+
+  cs_t3_ops:
+    permissions:
+      - account.view_user
+      - account.view_company
+      - account.view_merchant_profile
+      - account.view_location
+
+  cs_t4_leadership:
+    permissions:
+      - account.view_user
+      - account.view_pii
+      - account.view_company
+      - account.view_merchant_profile
+      - account.view_location
+
+  eng_general:
+    permissions:
+      - account.view_user
+      - account.view_pii
+      - account.verify_phone
+      - account.view_company
+      - account.view_merchant_profile
+      - account.view_location
+
+  eng_super:
+    permissions:
+      - account.view_user
+      - account.view_pii
+      - account.verify_phone
+      - account.impersonate_user
+      - account.view_company
+      - account.view_merchant_profile
+      - billing.update_subscription_tier
+      - account.view_location
+      - account.archive_location_jobs
+
+  eng_power:
+    permissions:
+      - "account.*"
+      - "billing.*"
