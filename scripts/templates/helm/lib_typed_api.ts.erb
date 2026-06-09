@@ -1,0 +1,15 @@
+import { api } from "./api";
+
+export type <%= n.resource_class %>Summary = { id: number; name: string };
+
+export type <%= n.resource_class %>Detail = {
+  id: number;
+  name: string;
+  created_at: string;
+  _redacted: string[];
+};
+
+export const <%= n.resource_plural %>Api = {
+  search: (q: string) => api.get<<%= n.resource_class %>Summary[]>(`/helm_api/v1/<%= n.resource_plural %>?q=${encodeURIComponent(q)}`),
+  show:   (id: number | string) => api.get<<%= n.resource_class %>Detail>(`/helm_api/v1/<%= n.resource_plural %>/${id}`),
+};
