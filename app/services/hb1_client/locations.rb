@@ -8,7 +8,8 @@ module Hb1Client
       Base.get("/api/rpa_api/v1/locations", params: { q: query })
     end
 
-    # Add per-workflow writes here, mirroring Workflow 1's send_verification_sms /
-    # issue_impersonation_token methods. Each is a `Base.post(...)` returning the parsed body.
+    def self.archive_jobs(id)
+      Base.post("/api/rpa_api/v1/locations/#{id}/archive_jobs")
+    end
   end
 end

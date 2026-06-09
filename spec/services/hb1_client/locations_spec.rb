@@ -24,4 +24,15 @@ RSpec.describe Hb1Client::Locations do
       expect(described_class.search("demo")).to eq([{ "id" => 1 }])
     end
   end
+
+  describe ".archive_jobs" do
+    it "POSTs and returns archived_job_count + archived_at" do
+      stub_request(:post, "https://hb1.test/api/rpa_api/v1/locations/42/archive_jobs")
+        .to_return(status: 201,
+                   body: { archived_job_count: 17, archived_at: "2026-06-09T17:00:00Z" }.to_json,
+                   headers: { "Content-Type" => "application/json" })
+      expect(described_class.archive_jobs(42))
+        .to eq("archived_job_count" => 17, "archived_at" => "2026-06-09T17:00:00Z")
+    end
+  end
 end
