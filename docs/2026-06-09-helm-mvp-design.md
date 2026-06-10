@@ -1,12 +1,30 @@
 # Helm MVP — Admin Panel Replacement
 
-**Status:** Design approved, ready for implementation planning
-**Date:** 2026-06-09
+**Status:** v1.1 — built and demoable. Original spec approved 2026-06-09; amendments applied 2026-06-10.
+**Date:** 2026-06-09 (v1), 2026-06-10 (v1.1 amendments)
 **Owner:** Anumita Srivastava
+**Product name in UI:** "Homebase Helm"
 **Related:**
 - [Admin Panel: Path Forward](https://joinhomebase.atlassian.net/wiki/spaces/CE1/pages/5040799765/) — Step 4 (Consolidate Into One Tool)
 - [Getting Started with AuthZ](https://joinhomebase.atlassian.net/wiki/spaces/AAAI/pages/5030838307/)
 - Project memory: `project_admin_mvp_replacement.md`
+- Implementation plans: `docs/superpowers/plans/2026-06-09-helm-*.md` (Plans 1–5)
+- Handoff docs: `docs/handoff/{TEMPLATE,user_lookup,hb1-workflow*}.md`
+
+## Changelog
+
+**v1.1 (2026-06-10) — visual-demo expansions.** All driven by APM tables surfaced during demo prep; not in the original APM-verified MVP scope but layered cleanly on top of it. No architectural changes; same scaffold pattern applies.
+
+- **Branding:** Product is named "Homebase Helm" in UI and browser title. Custom MUI theme uses Homebase deep-purple `#1E0E3E` top bar, bright-purple `#5E2BFF` primary, yellow `#FFE94A` info, pill-shaped buttons, rounded cards. RoleSwitcher restyled white-on-purple. (`client-helm/src/theme.ts`)
+- **Audit trail UX:** `/helm_api/v1/audits` joins `admin_users` and exposes `admin_user_email` + `admin_user_name`. Frontend renders `Name · email · #id` as the actor label so audit rows credit a person, not just a role.
+- **Demo seed:** `bin/demo-data` accepts `HELM_DEMO_PERSON` env (default `Anumita Srivastava`) and updates `AdminUser.full_name` so audit rows show a real human regardless of which role the demo is acting as.
+- **User workflow:** added §4.1.1 detail fields (memberships, jobs, MFA status, bank presence), edit user (PATCH with diff audit), resend verification email.
+- **Location workflow:** added §4.3.1 detail fields (address, tier, partner, job counts, users[]), unarchive jobs, impersonate user at location.
+- **Company / Merchant workflow:** added §4.2.1 detail fields (payroll readiness, missing-data flags, check entity; company subscription/locations/payment attempts), sales-tax view (tiered), biller view (PII-gated credit cards + tier history).
+- **New permissions added** (§3.1 updated): `account.edit_user`, `account.resend_verification_email`, `account.view_sales_tax`, `account.view_biller`.
+- **New audit actions** (§5.2 updated): `user.edited` (with `payload_before`/`payload_after` diff), `user.verification_email_sent`, `location.jobs_unarchived`, `location.user_impersonated`.
+- **Mock HB1 server** for local demo: `tmp/mock-hb1.rb` (WEBrick) serves canned HB1 responses including a `/fake_login/<token>` page so impersonation new-tabs land somewhere real instead of an unresolved hostname. Not production code; documents the contract Helm needs from HB1.
+- **Scaffold fix:** generator now emits `app/api/helm_api/v1/<resource_plural>_api.rb` (matching the inner `<ResourcePlural>Api` class) instead of `<workflow_snake>_api.rb` (which broke Zeitwerk). Fixed mid-Plan-4; `helm-scaffold-v1` tag includes the fix.
 
 ---
 
@@ -149,18 +167,25 @@ permissions:
   - { key: account.view_user,                  scope: human }
   - { key: account.view_pii,                   scope: human }
   - { key: account.verify_phone,               scope: human }
+  - { key: account.resend_verification_email,  scope: human }   # v1.1
+  - { key: account.edit_user,                  scope: human }   # v1.1
   - { key: account.impersonate_user,           scope: human }
   - { key: account.view_company,               scope: company }
   - { key: account.view_merchant_profile,      scope: company }
+  - { key: account.view_sales_tax,             scope: company } # v1.1
+  - { key: account.view_biller,                scope: company } # v1.1
   - { key: billing.update_subscription_tier,   scope: company }
   - { key: account.view_location,              scope: location }
   - { key: account.archive_location_jobs,      scope: location }
+  # NOTE: archive_location_jobs is also used to authorize "unarchive jobs"
+  # — both directions of the same operation share one permission (v1.1).
 
 roles:
   cs_t1_agent:
     permissions:
       - account.view_user
       - account.verify_phone
+      - account.resend_verification_email
       - account.view_company
       - account.view_merchant_profile
       - account.view_location
@@ -170,8 +195,12 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
+      - account.edit_user
       - account.view_company
       - account.view_merchant_profile
+      - account.view_sales_tax
+      - account.view_biller
       - account.view_location
 
   cs_t2_payments:
@@ -179,8 +208,12 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
+      - account.edit_user
       - account.view_company
       - account.view_merchant_profile
+      - account.view_sales_tax
+      - account.view_biller
       - billing.update_subscription_tier
       - account.view_location
 
@@ -189,6 +222,8 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
+      - account.edit_user
       - account.impersonate_user
       - account.view_company
       - account.view_merchant_profile
@@ -207,6 +242,8 @@ roles:
       - account.view_pii
       - account.view_company
       - account.view_merchant_profile
+      - account.view_sales_tax
+      - account.view_biller
       - account.view_location
 
   eng_general:
@@ -214,6 +251,7 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
       - account.view_company
       - account.view_merchant_profile
       - account.view_location
@@ -223,9 +261,13 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
+      - account.edit_user
       - account.impersonate_user
       - account.view_company
       - account.view_merchant_profile
+      - account.view_sales_tax
+      - account.view_biller
       - billing.update_subscription_tier
       - account.view_location
       - account.archive_location_jobs
@@ -397,6 +439,53 @@ Audit events emitted
   user.impersonation_started   (high-sensitivity, always logged)
 ```
 
+### 4.1.1 User Workflow extensions (v1.1)
+
+APM rows added to scope:
+1. View user detail — identity, memberships, jobs, bank account presence, MFA status (61.5% of user-workflow traffic)
+2. Edit user — correct email, phone, or full name
+3. Resend verification email
+
+```
+GET  /helm_api/v1/users/:id          (extended response, additive fields)
+   { id, email, full_name, created_at, last_sign_in_at, stytch_subject,
+     mfa_status, bank_account_present,        # v1.1
+     memberships: [                            # v1.1
+       { company_id, company_name, location_id, location_name,
+         role_at_location, since }
+     ],
+     jobs: [                                   # v1.1
+       { id, title, status, location_id, location_name, scheduled_for }
+     ],
+     phone?, ssn_last4?, bank_last4?,         (PII)
+     _redacted }
+
+PATCH /helm_api/v1/users/:id                  # v1.1
+  body: { email?, phone?, full_name? }  (at_least_one_of)
+  → updated User entity
+  Permission: account.edit_user
+  Audit:      user.edited (payload_before/after contain ONLY changed keys)
+  Implementation: BFF fetches user via Hb1Client.show first to capture
+                  payload_before, then PATCHes HB1 and writes the diff.
+
+POST /helm_api/v1/users/:id/verification_email  # v1.1
+  → { sent_at, provider_request_id, to_email }
+  Permission: account.resend_verification_email
+  Audit:      user.verification_email_sent
+
+HB1 contract additions
+  PATCH /api/rpa_api/v1/users/:id    body { email?, phone?, full_name? }
+       → full user entity (so the BFF can audit the diff)
+  POST  /api/rpa_api/v1/users/:id/verification_email
+       → { sent_at, provider_request_id, to_email }
+```
+
+React UX (`pages/UserLookup/ShowPage.tsx`):
+- Header chips: `MFA: enabled|disabled|unknown` (colored), `bank ✓` or `no bank`
+- Tabs: Identity / Memberships (n) / Jobs (n) / Audit trail
+- Action buttons (each gated by usePermission): Edit user, Resend verification SMS, Resend verification email, Impersonate
+- `EditUserDialog` MUI modal — phone field disabled when in `_redacted`
+
 ### 4.2 Workflow 2 — Company Account & Merchant Profile
 
 ```
@@ -433,6 +522,62 @@ Audit events emitted
 
 **Note on MerchantProfilePresenter extraction:** This is the largest single piece of HB1 work in the MVP. The presenter is invoked twice per page load today (once via Rails, once via GraphQL — see Path-Forward Step 1) and accounts for 16% of all admin traffic. Extracting it into `Billing::MerchantProfileService` consumed by a REST endpoint kills the double-invocation problem and unblocks both Helm and the GraphQL sunset.
 
+### 4.2.1 Company / Merchant extensions (v1.1)
+
+APM rows added to scope:
+1. View merchant profile — check entity, payroll readiness, missing-data flags
+2. View company detail — tier, subscription, locations, payment attempts
+3. View sales tax data — per-location tax records, exemptions (tiered visibility)
+4. View biller details — locations, credit cards (last 4 only), tier history
+
+```
+GET  /helm_api/v1/companies/:id      (extended response, additive)
+  Adds:
+    subscription:     { status, started_at, renews_at },
+    locations:        [{ id, name }, ...]       # links to /locations/:id
+    payment_attempts: [{ id, amount_cents, status, attempted_at,
+                         failure_reason }, ...]
+
+GET  /helm_api/v1/companies/:id/merchant_profile   (extended response)
+  Adds:
+    payroll_readiness:  "ready"|"blocked"|"pending"|...,
+    missing_data_flags: [ "<flag>", ... ],
+    check_entity:       { id, name, ein_last4, status }
+
+GET  /helm_api/v1/companies/:id/sales_tax           # v1.1 NEW
+  → { company_id,
+      aggregate_tax_collected_cents,
+      per_location: [{ location_id, location_name, tax_authority,
+                       tax_id, exempt, last_filed_at }, ...],
+      exemptions:   [{ kind, granted_at, expires_at }, ...] }
+  Permission: account.view_sales_tax (held by cs_t2_payroll, cs_t2_payments,
+              cs_t4_leadership, eng_super, eng_power*)
+
+GET  /helm_api/v1/companies/:id/biller              # v1.1 NEW
+  → { company_id,
+      locations:    [{ id, name }, ...],
+      credit_cards: [{ brand, last4, exp_month, exp_year, primary }, ...],
+                                                # PII-gated by account.view_pii
+      tier_history: [{ tier, started_at, ended_at }, ...] }
+  Permission: account.view_biller (same role set as view_sales_tax)
+  PII:        credit_cards entirely omitted when role lacks account.view_pii;
+              `_redacted` includes "credit_cards" so the UI shows an alert.
+
+HB1 contract additions
+  GET  /api/rpa_api/v1/companies/:id              (additive fields above)
+  GET  /api/rpa_api/v1/companies/:id/merchant_profile  (additive fields above)
+  GET  /api/rpa_api/v1/companies/:id/sales_tax
+  GET  /api/rpa_api/v1/companies/:id/biller
+```
+
+React UX (`pages/CompanyMerchant/ShowPage.tsx`) — composite layout with five tabs:
+- Header chips: `tier: <tier>`, `payroll: ready|blocked|...` (colored), `N missing` warning chip when `missing_data_flags` non-empty
+- Tabs: Company / Merchant / Sales tax (conditional on `account.view_sales_tax`) / Biller (conditional on `account.view_biller`) / Audit trail
+- **Company tab** sub-cards: Identity, Subscription, Locations (with `<RouterLink to="/locations/:id">`), Recent payment attempts (status chips)
+- **Merchant tab** sub-cards: Payroll readiness (chips for missing flags), Check entity, Billing, Recent invoices
+- **Sales tax tab**: aggregate cents → dollars, per-location records (cross-linked to /locations/:id), exemptions
+- **Biller tab**: locations (cross-linked), credit cards (or "redacted for your role" alert), tier history
+
 ### 4.3 Workflow 3 — Location Management
 
 ```
@@ -457,6 +602,54 @@ PII fields
 Audit events emitted
   location.jobs_archived  (includes archived_job_count for forensics)
 ```
+
+### 4.3.1 Location workflow extensions (v1.1)
+
+APM rows added to scope:
+1. View location detail — name, address, tier, jobs, partner (61.5% of location-workflow traffic)
+2. Impersonate a user at the location (god-mode login at this location's context)
+3. Archive / **unarchive** jobs at the location (archive shipped in v1; unarchive added in v1.1)
+
+```
+GET  /helm_api/v1/locations/:id      (extended response, additive)
+  Adds:
+    address:            "<street, city, state, zip>",
+    tier:               "<inherits from company>",
+    partner_name:       "<Square POS | Toast POS | ...>",
+    job_count:          <int>,
+    archived_job_count: <int>,
+    users: [                                    # users employed at this location
+      { id, name, email, role_at_location }, ...
+    ]
+
+POST /helm_api/v1/locations/:id/unarchive_jobs    # v1.1 NEW
+  → { unarchived_job_count, unarchived_at }
+  Permission: account.archive_location_jobs    (same key as archive — one perm
+                                                authorizes both directions)
+  Audit:      location.jobs_unarchived
+
+POST /helm_api/v1/locations/:id/impersonate?user_id=N  # v1.1 NEW
+  → { url, expires_at }
+  Permission: account.impersonate_user (same as user-workflow impersonate)
+  Audit:      location.user_impersonated (resource=Location, payload includes
+                                          user_id + expires_at)
+  Implementation: BFF calls Hb1Client::Users.issue_impersonation_token(user_id),
+                  but writes the audit row scoped to the LOCATION resource so
+                  the Location's audit tab shows the action in context.
+
+HB1 contract additions
+  GET  /api/rpa_api/v1/locations/:id          (additive fields above)
+  POST /api/rpa_api/v1/locations/:id/unarchive_jobs
+       → { unarchived_job_count, unarchived_at }
+  (impersonate at-location reuses existing POST /users/:id/impersonation_token;
+   only the audit-row resource differs)
+```
+
+React UX (`pages/LocationManagement/ShowPage.tsx`):
+- Header chips: `tier: <tier>`, partner-name chip (yellow `info` color)
+- Action buttons (gated): **Archive jobs** (contained warning), **Unarchive jobs** (outlined warning — disabled when `archived_job_count === 0`)
+- Profile card adds: Address, Company id, Tier, Partner, Active jobs, Archived jobs
+- **Users at this location** card — each row has a per-user **Impersonate** button (gated by `account.impersonate_user`); clicking writes the audit row to the Location, not the user
 
 ### 4.4 HB1-side extraction pattern (uniform)
 
@@ -604,6 +797,19 @@ end
 ```
 
 Every write endpoint calls `AuditService.record`. The `AuditTrailTab` React component reads back via `GET /helm_api/v1/audits?resource_type=User&resource_id=123` so the demo can show the audit trail per resource.
+
+**v1.1 — actor identification.** The `GET /helm_api/v1/audits` response joins `admin_users` (via `.includes(:admin_user)`) and includes `admin_user_email` + `admin_user_name` alongside `admin_user_id`. The React `AuditTrailTab` renders the actor label as `Name · email · #id`. This means every past audit row's displayed actor updates the moment an `AdminUser.full_name` is renamed (the row itself only stores `admin_user_id`). The demo seeder (`bin/demo-data`) accepts `HELM_DEMO_PERSON` env (default "Anumita Srivastava") so all nine seeded roles credit one real human in the demo, regardless of which role they're acting as.
+
+**v1.1 — actions added since the original spec:**
+
+```
+user.edited                  payload_before/after include ONLY changed keys
+                             (BFF fetches user first to compute the diff)
+user.verification_email_sent payload_after: { sent_at, provider_request_id, to_email }
+location.jobs_unarchived     payload_after: { unarchived_job_count, unarchived_at }
+location.user_impersonated   resource=Location (NOT User); payload_after:
+                             { user_id, expires_at }
+```
 
 ### 5.3 Datadog instrumentation
 
