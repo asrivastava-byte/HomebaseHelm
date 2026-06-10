@@ -2,7 +2,7 @@
 
 **Format:** speaker drives the browser; **Do** = the action, **Say** = the talking point.
 
-**Themes to hit:** **no god mode** · **auditing** · **impersonation** · **workflows, not a UI for ActiveRecord** · **AI-led project** · **RBAC is config, not code**.
+**Themes to hit:** **no god mode** · **auditing** · **impersonation** · **workflows, not a UI for ActiveRecord** · **AI-led project** · **RBAC is config, not code** · **swap-ready for AuthZ** · **HB1 is the source of truth (REST, not DB sharing)** · **Helm owns only admin/audit data**.
 
 Three workflow stops: User, Company / Merchant, Location.
 
@@ -121,7 +121,44 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 
 ---
 
-## 3:40 — Close (25 sec)
+## 3:50 — Architecture: where Helm lives in the picture (40 sec)
+
+**Do:** *(Optional)* sketch on a whiteboard, or show this ASCII in your terminal:
+
+```
+   Browser ──▶ Helm (Rails BFF + React)            HB1 (existing monolith)
+                  │                                  │
+                  │   Bearer token, REST             │  Source of truth for
+                  ├────────────────────────────────▶ │  ALL domain data:
+                  │   /api/rpa_api/v1/users/...      │  users, companies,
+                  │   /api/rpa_api/v1/companies/..   │  locations, jobs,
+                  │   /api/rpa_api/v1/locations/..   │  billing, payroll.
+                  │                                  │
+                  ▼                                  ▼
+            Helm Postgres                       HB1 Postgres
+            ─────────────                       ───────────────
+            admin_users                         users, companies,
+            audit_events                        locations, jobs, ...
+            sessions                            (Helm never touches these)
+
+            AuthZ (future)
+            ──────────────
+            HELM_PERMISSION_BACKEND=authz
+            same call sites, same YAML schema, gRPC instead of file read
+```
+
+**Say:**
+> "Three things matter about how this fits together.
+>
+> **One — what lives in Helm.** Three tables in Helm's own Postgres: `admin_users`, `audit_events`, `sessions`. Zero domain rows. No users table, no companies table, no jobs. If you `SELECT * FROM users` on Helm's DB, you get nothing — because the users live on HB1.
+>
+> **Two — Helm calls HB1 over REST.** Every read and write goes through `app/api/rpa_api/v1/*` Grape endpoints on HB1, with a Bearer token. We're adding a small number of new routes per workflow — extracted from existing `app/admin/*` action bodies into service objects, exposed over REST. The pack teams own those extractions; punch lists are in `docs/handoff/hb1-workflow*.md`. ActiveAdmin keeps working in parallel — it's a Strangler Fig migration, not a cutover.
+>
+> **Three — AuthZ.** Today permissions live in the YAML you saw a moment ago. The PermissionService has a backend swap built in — `HELM_PERMISSION_BACKEND=authz` flips it to gRPC. The YAML schema is already AuthZ-shaped (role × permissions × scope_type), so the migration is a `rake authz:sync` task plus the env flag. **No call-site changes** — `check_permission!` in the BFF doesn't know which backend it's talking to."
+
+---
+
+## 4:30 — Close (25 sec)
 
 **Say:**
 > "So — three workflows, one pattern.
@@ -132,7 +169,9 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 >
 > **Auditing.** Every write → a row credited to a person, before the response renders. Audit goes to the resource that frames the workflow — User if you started from User, Location if you started from Location.
 >
-> **RBAC is config, not code.** One YAML file. CS Tier 4 can PR a permission change without an engineering ticket. Schema is AuthZ-shaped so the migration to real AuthZ is a deploy-flag, not a refactor.
+> **RBAC is config, not code.** One YAML file. CS Tier 4 can PR a permission change without an engineering ticket. The schema is AuthZ-shaped, so when AuthZ supports admin reps the migration is a deploy-flag (`HELM_PERMISSION_BACKEND=authz`), not a refactor.
+>
+> **Helm is its own service.** Three tables in its own Postgres — admin_users, audit_events, sessions. Zero domain data. HB1 is the source of truth for users, companies, locations, jobs, billing — Helm calls HB1 over REST and audits the result. Strangler Fig: ActiveAdmin keeps working while pack teams migrate at their own pace.
 >
 > **And this whole thing is AI-led.** I wrote the spec; an AI agent decomposed it into five tested plans and built every commit — atomic, tests-first, traceable back to a plan step. The MVP ships with a scaffold and worked-example handoff docs so any pack team can migrate their remaining workflows the same way — whether a human or an AI does it. The methodology is the reusable part."
 
