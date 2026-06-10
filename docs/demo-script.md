@@ -1,8 +1,10 @@
-# Homebase Helm — 2-3 Minute Live Demo Script
+# Homebase Helm — 3-4 Minute Live Demo Script
 
 **Format:** speaker drives the browser; **Do** = the action, **Say** = the talking point.
 
 **Themes to hit:** **no god mode** · **auditing** · **impersonation** · **workflows, not a UI for ActiveRecord**.
+
+Three workflow stops: User, Company / Merchant, Location.
 
 ---
 
@@ -13,81 +15,127 @@ cd ~/helm/helm && bin/dev          # Rails :3001 + Vite :5173
 ruby /tmp/mock-hb1.rb              # in a second terminal
 ```
 
-Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, the User Lookup page open.
+Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Lookup page open.
 
 ---
 
-## 0:00 — Frame it (15 sec)
+## 0:00 — Frame it (20 sec)
 
 **Say:**
-> "Homebase Helm replaces our admin panel for the three workflows that are 84% of admin activity. One sentence: **this is workflows, not a UI for ActiveRecord** — every action is a permission, every action is audited, and no one has god mode."
+> "Homebase Helm replaces our admin panel for the three workflows that are **84% of admin activity** — User Lookup, Company / Merchant, Location Management. One sentence: **this is workflows, not a UI for ActiveRecord** — every action is a permission, every action is audited, and no one has god mode."
 
 ---
 
-## 0:15 — Workflows, not ActiveRecord (30 sec)
+## 0:20 — Workflow 1: User Lookup + PII gating (40 sec)
 
-**Do:** Type `jane` in the search box → click `jane@hb1.test`.
+**Do:** Type `jane` → click `jane@hb1.test`.
 
 **Say:**
-> "I'm searching, not browsing a table. The old admin gave you every column on every model. Helm gives you the actions admins actually take. Tabs: Identity, Memberships, Jobs, Audit. PII is `••••` because I'm Tier 1 Support — and those fields aren't hidden by CSS, they're physically absent from the JSON the server sent."
+> "Search, not a table grid. Tabs are *what admins do* — Identity, Memberships, Jobs, Audit. I'm Tier 1 Support — PII fields render as `••••` because they're physically absent from the JSON the server sent. Not a CSS hide; the server stripped them."
 
-*(Optional, if devtools are open: Network → /users/42 → no `phone`, `ssn_last4`, `bank_last4` in the response.)*
+**Do:** Briefly click through the Memberships tab → Jobs tab → back to Identity.
+
+**Say:**
+> "One page about this person. Where they work, the shifts they have, their MFA status, their bank-on-file flag. The old admin would have made you click through five index pages to assemble this."
 
 ---
 
-## 0:45 — No god mode, via role switching (45 sec)
+## 1:00 — No god mode + Impersonation (45 sec)
 
-**Do:** RoleSwitcher → `cs_t2_escalations`.
+**Do:** RoleSwitcher → `cs_t2_escalations`. Page reloads.
 
 **Say:**
-> "Same user. Different role. PII is visible. And — this is the headline — an **Impersonate** button appears.
+> "Same user. Different role. PII is now visible — `+15555550123`, SSN, bank. And an **Impersonate** button appears.
 >
-> The old admin had impersonate as a button anyone with admin access could push. In Helm it's a discrete permission — `account.impersonate_user` — held by **three of nine roles**. Tier 1 can't do it. Tier 2 Payroll can't do it. Tier 2 Escalations and senior eng can. That's it.
->
-> The button hiding for other roles is a courtesy. The server is the enforcer — try the API call with the wrong role and you get a 403 before HB1 even hears about it."
+> Impersonate is a discrete permission held by **three of nine roles**. Tier 1 can't do it. Tier 2 Payroll can't do it. The button literally isn't here for them — and the server would 403 if they tried the HTTP call directly. **No god mode.**"
 
----
-
-## 1:30 — Impersonation + audit (45 sec)
-
-**Do:** Click **Impersonate** → confirm dialog → Confirm.
+**Do:** Click **Impersonate** → confirm → Confirm.
 
 **Do:** A new tab opens to a mock "Logged in as Jane Doe" page.
 
 **Say:**
-> "New tab. In production this is HB1's one-time `login_as` URL with a 15-minute TTL. The session lives on HB1; Helm doesn't proxy it."
+> "New tab. In production this is HB1's one-time `login_as` URL. Helm doesn't proxy the session — it just mints and audits."
 
-**Do:** Switch back to the Helm tab → click the **Audit trail** tab.
+**Do:** Switch back to Helm → click **Audit trail** tab.
 
 **Say:**
-> "Top row. `user.impersonation_started`. My name, my role, my email, my user-id, the timestamp, the token's expiry.
->
-> **This audit row was written before the new tab opened.** Even if my browser had crashed right after I clicked Confirm, this row would still be in Helm's Postgres. There is no path that mints an impersonation URL without writing this row. Every write — edit, verify, impersonate — produces an audit row the same way."
+> "`user.impersonation_started`. My name, role, email, the timestamp, the token expiry. **This row was written before the new tab opened.** Every write — verify, edit, impersonate — produces an audit row the same way, before the success response renders."
 
 ---
 
-## 2:15 — Close (15 sec)
+## 1:45 — Workflow 2: Company / Merchant + tiered tabs (50 sec)
+
+**Do:** Nav → **Company / Merchant** → search "acme" → click Acme Diner.
 
 **Say:**
-> "So — workflows, not tables. Every action gated by a YAML-defined permission, server-enforced. Impersonation recast from a magic admin button into one of nine workflow verbs. Every write audited to a person, before the response renders. **No god mode.**
+> "Same pattern. Workflows, not a UI for the `companies` and `merchant_profiles` and `sales_tax_records` tables — *one page* about this business, organized by the questions admins actually ask."
+
+**Do:** Click through the tabs: **Company → Merchant → Sales tax → Biller → Audit trail**.
+
+**Say (as you walk):**
+> "Company tab: subscription, locations (cross-linked), recent payment attempts including failures. Merchant tab: payroll readiness chip, missing-data flags, check entity. Sales tax tab: per-location records, exemptions. Biller tab: credit cards — last four PII-gated — and tier history.
 >
-> Built end-to-end by an AI agent against a spec doc, with tests-first discipline. Ships with a scaffold so pack teams can migrate the remaining 16% of admin traffic the same way."
+> Here's the tiered-visibility piece — the Sales tax and Biller tabs are only here because `cs_t2_escalations` happens to have... actually, they don't have `view_sales_tax`. Let me switch."
+
+**Do:** RoleSwitcher → `cs_t2_payroll`. Page reloads — now Sales tax and Biller tabs are visible.
+
+**Say:**
+> "Tier 2 Payroll. The Sales tax and Biller tabs appeared. Tier 1 Support never sees them at all — not the tab, not the data. **Permission-gated at the route level**, not hidden in JS."
+
+*(If short on time, skip the role switch and just say "if I switched to Tier 1, those tabs would disappear entirely.")*
+
+---
+
+## 2:35 — Workflow 3: Location + at-context impersonation (45 sec)
+
+**Do:** Nav → **Locations** → search "acme" → click Acme Diner — Main St.
+
+**Say:**
+> "Same shape, third workflow. Address, tier, partner POS, active and archived jobs. The interesting card is this — **Users at this location**."
+
+**Do:** Scroll to Users-at-location → highlight the Impersonate buttons.
+
+**Say:**
+> "Same impersonate verb. Same permission. But notice — when I impersonate Marco *from here*, the audit row attaches to the *Location*, not the *User*. Because the workflow I'm in is 'investigate this location,' not 'investigate this person.' The audit tells the story of what I was doing when I made the move."
+
+**Do:** Click Impersonate on a user → confirm → click the Audit trail tab.
+
+**Say:**
+> "`location.user_impersonated`. Resource is `Location#42`. Payload says which user. That detail matters weeks later when you're triaging — searchable without joining three tables."
+
+**Do:** *(Optional, if time)* Click **Archive jobs** → confirm → then **Unarchive jobs** → confirm.
+
+**Say (if you do the optional):**
+> "Two verbs, one permission — archive and unarchive are the same trust level. Both audited."
+
+---
+
+## 3:20 — Close (20 sec)
+
+**Say:**
+> "So — three workflows, one pattern.
+>
+> **Workflows, not tables.** Search and tabs designed around what admins do, not what the schema is.
+>
+> **No god mode.** Every action a discrete permission. PII server-side redacted. Impersonate gated to three of nine roles. The buttons hiding in the UI are a courtesy — the server is the enforcer.
+>
+> **Auditing.** Every write → a row credited to a person, before the response renders. Audit goes to the resource that frames the workflow — User if you started from User, Location if you started from Location.
+>
+> Built end-to-end by an AI agent against a written spec, with tests-first discipline. Ships with a scaffold so pack teams can migrate the remaining 16% of admin traffic the same way."
 
 ---
 
 ## If asked
 
-- **"What if HB1 is down?"** — Helm returns 502; audit log unaffected; no writes happen. Helm is intentionally not a cache.
-- **"How do permission changes ship?"** — Edit `config/permissions.yml`, restart Rails, done. CS Tier 4 can PR it; no engineering ticket. The model is AuthZ-shaped, so the migration to real AuthZ is a backend swap (`HELM_PERMISSION_BACKEND=authz`) with no call-site changes.
-- **"How do other teams migrate?"** — `scripts/scaffold-workflow.rb <workflow> <resource>` stamps out the BFF + entity + React + handoff doc. `docs/handoff/user_lookup.md` is the worked example.
-
----
+- **HB1 down?** Helm returns 502; audit log unaffected; no writes happen. Helm is not a cache by design.
+- **Permission changes?** Edit `config/permissions.yml`, restart Rails. CS Tier 4 can PR it; no engineering ticket. Schema is AuthZ-shaped, so migration to real AuthZ is a backend swap (`HELM_PERMISSION_BACKEND=authz`).
+- **Other teams?** `scripts/scaffold-workflow.rb <workflow> <resource>` stamps out BFF + entity + React + handoff doc. `docs/handoff/user_lookup.md` is the worked example.
 
 ## If something breaks
 
 - Vite died → `cd client-helm && bun run dev`
 - Rails died → `bin/rails server -p 3001`
 - Mock HB1 died → `ruby /tmp/mock-hb1.rb &`
-- Page blank → mock probably doesn't have that ID. Use **user 42**, **company 42 or 99**, **location 42, 77, or 88**.
+- Page blank → use **user 42**, **company 42 or 99**, **location 42, 77, or 88**.
 
-(For the longer, fuller 12-minute walkthrough — config-driven permissions live edit, Company/Merchant deep-dive, Location at-context impersonation — see git history for `c4a0b4b`.)
+(Fuller 12-minute walkthrough — live YAML edit, deeper Company tabs, etc. — see git history `c4a0b4b`.)
