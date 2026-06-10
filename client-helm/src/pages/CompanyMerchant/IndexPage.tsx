@@ -27,7 +27,7 @@ export function CompanyMerchantIndexPage() {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>CompanyMerchant</Typography>
+      <Typography variant="h5" gutterBottom>Company / Merchant</Typography>
       <TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} fullWidth autoFocus />
       <Box mt={2}>
         {isFetching && <CircularProgress size={20} />}

@@ -36,6 +36,18 @@ module HelmApi
             present profile, with: Entities::MerchantProfile, role: current_principal
           end
 
+          get :sales_tax do
+            check_permission!("account.view_sales_tax", scope: { company_id: params[:id] })
+            data = Hb1Client::Companies.sales_tax(params[:id])
+            present data, with: Entities::CompanySalesTax
+          end
+
+          get :biller do
+            check_permission!("account.view_biller", scope: { company_id: params[:id] })
+            data = Hb1Client::Companies.biller(params[:id])
+            present data, with: Entities::CompanyBiller, role: current_principal
+          end
+
           params do
             requires :to_tier, type: String
           end

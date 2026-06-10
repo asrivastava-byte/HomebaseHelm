@@ -7,6 +7,8 @@ permissions:
   - { key: account.impersonate_user,           scope: human }
   - { key: account.view_company,               scope: company }
   - { key: account.view_merchant_profile,      scope: company }
+  - { key: account.view_sales_tax,             scope: company }
+  - { key: account.view_biller,                scope: company }
   - { key: billing.update_subscription_tier,   scope: company }
   - { key: account.view_location,              scope: location }
   - { key: account.archive_location_jobs,      scope: location }
@@ -30,6 +32,8 @@ roles:
       - account.edit_user
       - account.view_company
       - account.view_merchant_profile
+      - account.view_sales_tax
+      - account.view_biller
       - account.view_location
 
   cs_t2_payments:
@@ -41,6 +45,8 @@ roles:
       - account.edit_user
       - account.view_company
       - account.view_merchant_profile
+      - account.view_sales_tax
+      - account.view_biller
       - billing.update_subscription_tier
       - account.view_location
 
@@ -69,6 +75,8 @@ roles:
       - account.view_pii
       - account.view_company
       - account.view_merchant_profile
+      - account.view_sales_tax
+      - account.view_biller
       - account.view_location
 
   eng_general:
@@ -91,6 +99,8 @@ roles:
       - account.impersonate_user
       - account.view_company
       - account.view_merchant_profile
+      - account.view_sales_tax
+      - account.view_biller
       - billing.update_subscription_tier
       - account.view_location
       - account.archive_location_jobs

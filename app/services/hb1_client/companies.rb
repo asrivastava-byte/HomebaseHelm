@@ -12,6 +12,14 @@ module Hb1Client
       Base.get("/api/rpa_api/v1/companies/#{id}/merchant_profile")
     end
 
+    def self.sales_tax(id)
+      Base.get("/api/rpa_api/v1/companies/#{id}/sales_tax")
+    end
+
+    def self.biller(id)
+      Base.get("/api/rpa_api/v1/companies/#{id}/biller")
+    end
+
     def self.change_billing_tier(id, to_tier:)
       Base.post("/api/rpa_api/v1/companies/#{id}/billing_tier", body: { to_tier: to_tier })
     end

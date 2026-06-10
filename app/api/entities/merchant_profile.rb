@@ -7,6 +7,20 @@ module Entities
     expose(:subscription_started_at)  { |obj| obj["subscription_started_at"] || obj[:subscription_started_at] }
     expose(:subscription_renews_at)   { |obj| obj["subscription_renews_at"]  || obj[:subscription_renews_at] }
     expose(:check_entity_id)          { |obj| obj["check_entity_id"]         || obj[:check_entity_id] }
+    expose(:payroll_readiness)        { |obj| obj["payroll_readiness"]       || obj[:payroll_readiness] }
+    expose(:missing_data_flags)       { |obj| obj["missing_data_flags"]      || obj[:missing_data_flags] || [] }
+
+    expose(:check_entity) do |obj|
+      raw = obj["check_entity"] || obj[:check_entity]
+      next nil if raw.nil?
+      {
+        id:        raw["id"]        || raw[:id],
+        name:      raw["name"]      || raw[:name],
+        ein_last4: raw["ein_last4"] || raw[:ein_last4],
+        status:    raw["status"]    || raw[:status]
+      }
+    end
+
     expose(:recent_invoices) do |obj|
       (obj["recent_invoices"] || obj[:recent_invoices] || []).map do |inv|
         {
