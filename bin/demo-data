@@ -1,14 +1,16 @@
 #!/usr/bin/env ruby
 require_relative "../config/environment"
 
+DEMO_PERSON_NAME = ENV.fetch("HELM_DEMO_PERSON", "Anumita Srivastava")
+
 roles = %w[cs_t1_agent cs_t2_payroll cs_t2_payments cs_t2_escalations
            cs_t3_ops cs_t4_leadership eng_general eng_super eng_power]
 
 roles.each do |role|
-  AdminUser.find_or_create_by!(email: "#{role}@helm.local") do |u|
-    u.full_name = role.split("_").map(&:capitalize).join(" ")
-    u.role      = role
-  end
+  user = AdminUser.find_or_initialize_by(email: "#{role}@helm.local")
+  user.full_name = DEMO_PERSON_NAME
+  user.role      = role
+  user.save!
 end
 
-puts "Seeded #{AdminUser.count} admin_users across #{roles.size} roles."
+puts "Seeded/updated #{AdminUser.count} admin_users (all named '#{DEMO_PERSON_NAME}') across #{roles.size} roles."
