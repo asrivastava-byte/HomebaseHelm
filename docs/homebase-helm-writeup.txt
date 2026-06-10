@@ -1,0 +1,776 @@
+
+Homebase Helm
+=============
+
+An AI-led replacement for our admin panel.
+Status: built and demoable. v1.1 — 2026-06-10.
+Owner: Anumita Srivastava.
+
+
+------------------------------------------------------------
+
+
+What it is, in one paragraph
+----------------------------
+
+Homebase Helm is a new, standalone admin tool that replaces ActiveAdmin (app/admin/*) and the React-on-top-of-ActiveAdmin layer inside client/. It ships with the three workflows that account for 84% of admin traffic (APM-verified, 30 days): User Account Lookup, Company / Merchant Profile, and Location Management. It runs as its own Rails service, reads HB1 over REST, applies role-based permissions defined in a single YAML file, redacts PII server-side per role, and writes an audit row for every action. There is no god mode — impersonation is a discrete, gated, audited permission held by three roles. The whole thing was built end-to-end by an AI agent (Claude Code, using the Superpowers skill suite) executing against a spec doc the human owner wrote, with tests-first discipline, and ships with a scaffold generator + handoff documentation so each pack team can migrate their own workflows the same way.
+
+
+------------------------------------------------------------
+
+
+How AI led this project
+-----------------------
+
+This is the most distinctive thing about Helm and worth explaining in detail, because the methodology is the reusable part.
+
+
+The collaboration shape
+
+The human (Anumita) did:
+- Wrote the original design doc (docs/2026-06-09-helm-mvp-design.md) — the canonical spec.
+- Made every product decision: which workflows to migrate, which roles exist, what counts as PII, what gets audited, how impersonation should feel, what permissions a given role holds.
+- Drove the demo and caught design issues live (the role-dropdown was illegible on the purple bar; the audit trail wasn't crediting a human; the company "Bagel Boutique" loaded a blank page; the "View user detail" needed memberships and MFA status; etc.).
+- Approved each plan before any code was written.
+
+The AI (Claude Code with Superpowers) did:
+- Decomposed the spec into 5 implementation plans, each one tracing back to specific spec sections.
+- Wrote every line of Ruby and TypeScript in the repo.
+- Wrote every test, with strict TDD: failing test first, minimal implementation, run-to-green, commit.
+- Caught implementation bugs as they happened (Zeitwerk's filename / class-name strict-naming rule; MUI's deprecated ListItem button API; vitest's toHaveBeenCalledWith strict-arity behavior with @tanstack/react-query callback signatures).
+- Built the scaffold generator (scripts/scaffold-workflow.rb) so future workflows can be stamped out without re-deriving the pattern.
+- Wrote the handoff docs in docs/handoff/ so pack teams inherit a checklist, not a black box.
+- Maintained the spec doc as new requirements arrived (docs/2026-06-09-helm-mvp-design.md v1.1 has a full changelog).
+
+Both are doing what they're best at: the human steers product and catches taste issues; the AI executes the long tail of code, tests, and documentation with consistent rigor.
+
+
+The methodology in concrete steps
+
+Each implementation cycle followed the same pattern:
+
+1. Spec. A markdown design doc, written first, reviewed by the human. The doc spells out: data shape, permissions, audit actions, PII fields, UI behavior. The spec is the source of truth.
+2. Brainstorming pass. A short clarifying exchange between human and AI to refine scope and resolve ambiguity (e.g., "should impersonate-at-location use a new permission or reuse account.impersonate_user?"). Decisions get folded back into the spec.
+3. Implementation plan. The AI breaks the spec into a numbered list of bite-sized tasks (docs/superpowers/plans/2026-06-09-helm-*.md). Each task lists exact file paths, the failing test to write first, the minimal code to make it pass, and the exact terminal commands to run. Plans 1–5 in this repo are 100+ tasks total. The human approves the plan before execution.
+4. TDD execution. For each task: write the failing test, run it (confirm it fails), implement, run again (confirm pass), commit. One commit per task. Around 100 commits land for the MVP foundation + three workflows + scaffold.
+5. Scaffold as the forcing function. Plan 3 turns the patterns from Plan 2 (the canonical example) into a generator. Plans 4 and 5 use the scaffold to build the remaining workflows. Any rough edge the scaffold hits is fixed in the scaffold before the next workflow runs — so handoff is genuinely tested by the AI before any pack team sees it.
+
+
+What the AI does NOT do
+
+- It does not commit anything destructive without explicit human consent.
+- It does not modify cross-repo state (e.g., the HB1 codebase) without an explicit OK. For Plans 2, 4, 5, the human chose "skip Section A, capture as handoff doc" — so the HB1-side changes are captured as docs/handoff/hb1-workflow*.md for the respective pack teams, and Helm-side code uses WebMock stubs in tests.
+- It does not skip the spec. When a change is requested mid-demo, the spec doc is updated to match before the work is considered "done."
+
+
+What this unlocks
+
+- Auditability. Every decision is on paper, every test is in source, every commit is atomic and trace-able to a plan step.
+- Repeatability. A different engineer (or a different AI) can pick up the same spec + plan and produce the same shape of code. The scaffold formalizes this.
+- Speed. The MVP — three full workflows, BFF + React + tests + scaffold + handoff docs — came together in days, not weeks. The Phase-2 expansions (today's session) added 8+ new sub-features in one afternoon while the human ran the demo in parallel.
+
+
+------------------------------------------------------------
+
+
+The numbers
+-----------
+
+- 84% of admin traffic covered by the three migrated workflows (APM-verified, 30 days)
+- 3 workflows live: User Account Lookup (43.8%), Company / Merchant (26.5%), Location Management (13.8%)
+- 5 implementation plans, each individually executable
+- ~100 atomic commits between helm-foundation-v1 and helm-mvp-v1
+- 95 backend RSpec examples, all green
+- 30 frontend Vitest specs across 13 files, all green
+- 9 roles defined; 13 permission keys (4 added in v1.1)
+- 0 lines of GraphQL; 0 "admin override" code paths
+
+
+------------------------------------------------------------
+
+
+1. Permissions
+--------------
+
+The whole authorization model lives in one file: config/permissions.yml. It declares two things — the list of permission keys the system knows about, and the assignment of those keys to roles. Nothing about who-can-do-what lives in Ruby or JavaScript code.
+
+permissions:
+  - { key: account.view_user,                  scope: human }
+  - { key: account.view_pii,                   scope: human }
+  - { key: account.verify_phone,               scope: human }
+  - { key: account.resend_verification_email,  scope: human }
+  - { key: account.edit_user,                  scope: human }
+  - { key: account.impersonate_user,           scope: human }
+  - { key: account.view_company,               scope: company }
+  - { key: account.view_merchant_profile,      scope: company }
+  - { key: account.view_sales_tax,             scope: company }
+  - { key: account.view_biller,                scope: company }
+  - { key: billing.update_subscription_tier,   scope: company }
+  - { key: account.view_location,              scope: location }
+  - { key: account.archive_location_jobs,      scope: location }
+
+roles:
+  cs_t2_escalations:
+    permissions:
+      - account.view_user
+      - account.view_pii
+      - account.verify_phone
+      - account.resend_verification_email
+      - account.edit_user
+      - account.impersonate_user
+      - account.view_company
+      - account.view_merchant_profile
+      - account.view_location
+  # ... 8 more roles
+
+
+Why YAML
+
+- CS Tier 4 / Ops can edit it. No Ruby. No JS. No code review queue. Edit, restart Rails, done.
+- Single source of truth. The React UI, the BFF endpoints, and the audit trail all consult the same backend (PermissionService).
+- AuthZ-shaped. The schema (role → permissions[] × scope_type) matches AuthZ's model. When AuthZ is ready to support admin reps, the migration is a rake authz:sync that seeds AuthZ from this YAML, then flipping HELM_PERMISSION_BACKEND=authz. Call sites don't change.
+
+
+How a check happens
+
+Three layers, all calling the same service:
+
+1. At the endpoint. Every BFF route starts with check_permission!("<key>", scope: { ... }). If the role lacks the permission, the call raises PermissionService::Forbidden and the framework returns 403. No way around it.
+   ```ruby
+   post :impersonate do
+     check_permission!("account.impersonate_user", scope: { human_id: params[:id] })
+     # ...
+   end
+   ```
+2. In the entity. PII fields are wrapped in with_options(if: ->(_obj, opts) { opts[:role]&.can?("account.view_pii") }). The fields are absent from the JSON response if the role lacks the permission — they don't travel over the wire and get hidden client-side. The entity also returns a _redacted: ["phone", "ssn_last4"] array so the React UI knows which fields to render as •••• placeholders.
+3. In the React UI. On boot, the app calls GET /helm_api/v1/session and gets back { role, permissions: [...], available_roles: [...] }. The usePermission("...") hook reads this to decide whether to render a button. This is for UX only — a missing button doesn't bypass the server check.
+
+
+Wildcard discipline
+
+Only eng_power may use wildcards ("account.", "billing."). The YAML loader rejects any wildcard on any other role at load time with InvalidPermissionsFile. This is the explicit "break-glass engineer" role — no one else gets a blanket grant.
+
+
+Validation at boot
+
+Two things are checked when PermissionService::YamlBackend loads the YAML:
+
+- Every role's listed permission must exist in the top-level permissions: block (no typos).
+- Wildcards are only allowed for eng_power.
+
+If either check fails, Rails refuses to boot. Misconfigurations can't get to production.
+
+
+------------------------------------------------------------
+
+
+2. Impersonation
+----------------
+
+Impersonation is one of two things in Helm that would have been "god mode" in the old system, and it's been deliberately recast as an explicit, gated, audited permission.
+
+
+Two impersonation surfaces
+
+1. From the User Lookup workflow (POST /helm_api/v1/users/:id/impersonate). You search a user, open their profile, click Impersonate.
+2. From the Location Management workflow (POST /helm_api/v1/locations/:id/impersonate?user_id=N). You open a location, see the list of users employed there, click Impersonate on a specific one. The audit row attaches to the Location (not the user) so the location's audit tab tells the story in context.
+
+Both surfaces require the same permission: account.impersonate_user. That permission is held by exactly three roles:
+
+- cs_t2_escalations (the escalations team)
+- eng_super (senior engineering)
+- eng_power (via wildcard — the break-glass role)
+
+
+What happens when you click Impersonate
+
+1. Confirm dialog. UI asks the agent to confirm. Cancel is harmless — no network call.
+2. check_permission! runs server-side. If the role doesn't have account.impersonate_user, the response is 403 with a clear reason string. The audit log records nothing (only successful writes are audited as actions — denied requests show up only in the BFF's request log).
+3. HB1 mints a one-time URL. Helm calls POST /api/rpa_api/v1/users/:id/impersonation_token on HB1. The URL has a short TTL (15 min default).
+4. AuditService.record runs BEFORE the URL is returned to the browser. The row contains: admin_user_id, role, workflow, action (user.impersonation_started or location.user_impersonated), resource_type, resource_id, payload_after.expires_at, request_id (ties to Datadog trace), IP, timestamp. The row goes to local Postgres AND a structured JSON line goes to Datadog via lograge.
+5. The browser opens the URL in a new tab. That new tab is where the actual impersonation session lives, on HB1's side. Helm holds no impersonation state.
+
+
+Why we wrote it this way
+
+- The audit row exists before the agent ever sees the URL. If the network breaks before the new tab opens, the action is still recorded.
+- The audit row credits a person. Today the seed maps role → <role>@helm.local and bin/demo-data sets all nine to the same human name; in production with Stytch JWT the same field becomes the real authenticated user's identity.
+- Helm doesn't proxy the impersonation session. All the security-sensitive token handling stays on HB1 where it's been for years.
+
+
+------------------------------------------------------------
+
+
+3. No god mode
+--------------
+
+This is a product principle as much as an architectural one. It deserves its own section because it determines the shape of every other decision.
+
+
+What "no god mode" means concretely
+
+- Every action requires a permission. There is no superuser? check, no if Rails.env.development? || current_admin.is_god, no override flag.
+- eng_power's wildcard is documented as the break-glass role, intended for engineers who genuinely need everything — not a default level. The wildcard implementation is explicitly restricted to that one role at YAML load time.
+- Impersonation is a permission, not a feature. The verb that used to be "log in as anyone" is now account.impersonate_user, held by three of nine roles, audited on every use.
+- PII redaction is server-side. A role without account.view_pii literally cannot see phone, SSN-last-4, bank-last-4, payment method last-4, credit card last-4, stripe customer id, etc. — those fields are stripped from the JSON before it leaves the BFF. A clever browser couldn't hack around that even if they wanted to.
+- The React UI's gating is for ergonomics only. Buttons hide and tabs disappear when you switch to a less-privileged role, but the enforcement is the server-side check_permission!. Server is always the source of truth.
+
+
+What's NOT in Helm
+
+- No "act as another admin" feature.
+- No way to silently elevate.
+- No bulk-export endpoint.
+- No path to read PII that doesn't go through account.view_pii.
+
+This is non-negotiable. The Path-Forward doc this MVP traces back to lists "no god mode" as a Step 2.5 requirement, and Helm enforces it by construction.
+
+
+------------------------------------------------------------
+
+
+4. How to configure permissions
+-------------------------------
+
+The whole point of the YAML model is that this is a config change, not a code change. Here's the actual workflow.
+
+
+Granting an existing permission to a role
+
+1. Open config/permissions.yml.
+2. Find the role's permissions: list. Add the key.
+3. Save. Restart Rails (bin/rails restart or kill/respawn puma).
+4. Next page load in the browser, the React app fetches /helm_api/v1/session again and sees the new permission. Buttons reappear, tabs unhide.
+
+
+Revoking a permission
+
+Same, but remove the line. Immediately effective on next page load.
+
+
+Adding a new permission key
+
+1. Open config/permissions.yml.
+2. Add to the top-level permissions: block: - { key: account.<verb>_<resource>, scope: <human|company|location> }.
+3. Assign it to whichever roles should hold it.
+4. The new permission isn't actually checked anywhere yet — that takes code: a check_permission!("...") call at the endpoint that should be gated. Wire the endpoint, ship the deploy, the permission is now live.
+
+
+Live demo of the model
+
+The clearest demonstration of the YAML approach: open config/permissions.yml, remove account.impersonate_user from cs_t2_escalations, restart Rails. Reload the user-show page in the browser — the Impersonate button is gone. No frontend deploy, no backend code change. That round-trip from YAML edit to UI behavior is the headline of the "config-driven permissions" demo.
+
+
+Validation safety net
+
+If you typo a permission key when assigning it to a role, Rails won't boot — PermissionService::YamlBackend validates at load time and raises InvalidPermissionsFile with the exact role and bad key. A bad YAML file can't reach production.
+
+
+Who can edit the YAML
+
+Anyone with merge access to the repo. The intent is that a CS Tier 4 leader or platform engineer can PR a permission change without engineering review — the file is structured, validated at boot, and trivially diff-able.
+
+
+------------------------------------------------------------
+
+
+5. How the handoff to other teams is decided
+--------------------------------------------
+
+Helm's MVP covers 84% of admin traffic with three workflows. The remaining 16% is a long tail of pack-team-specific workflows (Cash Out, Hiring, Stytch identity flows, HR onboarding, etc.). Each pack team owns its own corner of app/admin/ today, and the handoff plan respects that ownership.
+
+
+Ownership map
+
+- Identity pack → User-shaped workflows (account recovery, sessions, Stytch, MFA).
+- Billing pack → Company / Merchant / Tier change / Invoices / Payment methods / Sales tax.
+- Hiring pack → Job posts, candidate management, location-level employee setup.
+- Cash Out pack → Bank account verification, payout reversals.
+- Operations / Compliance → Audit exports, compliance reporting.
+
+
+Order of migration
+
+Migration order follows APM-verified traffic share. The original spec lists:
+
+1. User Account Lookup (43.8%) — Identity pack. Migrated as Plan 2.
+2. Company / Merchant Profile (26.5%) — Billing pack. Migrated as Plan 4.
+3. Location Management (13.8%) — Hiring or Locations pack (TBD). Migrated as Plan 5.
+4. Long tail (16% combined) — each pack team picks up its own.
+
+The MVP intentionally stops at 84% because the marginal cost of the next workflow drops sharply once the scaffold exists — what took Plan 2 (hand-built canonical example) ~17 tasks took Plan 5 (scaffold-driven) ~9 tasks.
+
+
+The handoff package
+
+Each migrated workflow ships with three documents:
+
+- docs/handoff/<workflow>.md — workflow-specific runbook (auto-generated by the scaffold).
+- docs/handoff/hb1-workflow<N>-<workflow>.md — punch list of HB1-side changes the pack team needs to ship (service extractions + Grape routes).
+- docs/handoff/user_lookup.md — the worked example: shows what "scaffold output + filled-in deltas" looks like for the canonical case.
+
+Plus:
+
+- docs/handoff/TEMPLATE.md — generic 10-step migration checklist.
+- scripts/scaffold-workflow.rb — the CLI that stamps out the skeleton.
+
+The handoff package is itself audited: every claim it makes about the scaffold is backed by a passing test in spec/scripts/scaffold/.
+
+
+------------------------------------------------------------
+
+
+6. How other teams can migrate their workflows
+----------------------------------------------
+
+This is the AI-led handoff in practice. The pattern below has been used twice (Plans 4 and 5) by the AI itself, so any rough edges have been filed off before a human picks it up.
+
+
+Step 1 — Scaffold
+
+scripts/scaffold-workflow.rb <workflow_snake> <resource_snake>
+# example
+scripts/scaffold-workflow.rb cash_out_review payout
+
+This generates 12 files on the Helm side:
+
+- app/api/entities/<resource>.rb — Grape entity with _redacted skeleton
+- app/api/helm_api/v1/<resource_plural>_api.rb — Grape API with GET search + GET show
+- app/services/hb1_client/<resource_plural>.rb — HTTP wrapper for HB1 calls
+- spec/{entities,requests,services}/... — failing tests ready to extend
+- client-helm/src/lib/<resource_plural>.ts — typed API helper
+- client-helm/src/pages/<WorkflowName>/{IndexPage,ShowPage,*.test}.tsx — React skeleton
+- docs/handoff/<workflow>.md — runbook stub
+
+Plus 4 HB1-side .template files in tmp/hb1-out/<workflow>/ for the pack team to copy-paste into Homebase1 with placeholders find-and-replaced.
+
+Plus an idempotent append to config/permissions.yml adding account.view_<resource>.
+
+
+Step 2 — Define the writes
+
+For each verb the workflow needs (e.g., verify_payout, reverse_payout):
+
+1. Add an HB1 service object (app/services/<pack>/<resources>/<verb>.rb) by moving the body of the existing ActiveAdmin member_action into a .call(...) method. ActiveAdmin's action becomes one line that delegates to the service.
+2. Add an HB1 Grape POST route under app/api/rpa_api/v1/<resources>_api.rb that calls the service.
+3. Add a Hb1Client::<Resources>.<verb> method in Helm.
+4. Add a post :<verb> do ... end block in app/api/helm_api/v1/<resource_plural>_api.rb that calls check_permission!, the client, then AuditService.record.
+5. Add a React button to the ShowPage gated by usePermission("...").
+
+
+Step 3 — Permissions
+
+Edit config/permissions.yml:
+
+- Add new keys (e.g., account.reverse_payout) using the <domain>.<verb>_<resource> convention.
+- Assign each to the roles that should hold it.
+- Restart Rails.
+
+
+Step 4 — PII
+
+In the new entity, list PII field names in PII_FIELDS = %w[...] and wrap each expose(:field) in a with_options(if: ->(_obj, opts) { opts[:role]&.can?("account.view_pii") }) block. The pattern is documented in app/api/entities/user.rb (Workflow 1's worked example).
+
+
+Step 5 — Audit every write
+
+Every write endpoint must call AuditService.record:
+
+AuditService.record(
+  actor:          lookup_admin_user!,
+  workflow:       "<workflow_snake>",
+  action:         "<resource>.<verb>",
+  resource_type:  "<ResourceClass>",
+  resource_id:    params[:id],
+  payload_before: { ... },  # only for diff-style audits
+  payload_after:  { ... }
+)
+
+
+Step 6 — Tests
+
+Four required tests per workflow (the scaffold's spec files have failing placeholders for each):
+
+1. Permission test — roles × permissions matrix.
+2. Entity PII test — assert fields absent/present per role.
+3. Endpoint integration test — stub HB1 via WebMock, assert 403 for denied roles, 200 + payload for allowed, AuditEvent.count increments by 1.
+4. Hb1Client wrapper test — WebMock the HB1 call.
+
+Plus Vitest specs for each React page/component.
+
+
+Step 7 — Wire the routes
+
+- app/api/helm_api/v1/base.rb — mount HelmApi::V1::<ResourcePlural>Api
+- client-helm/src/App.tsx — add <Route path="/<resource_plural>" ...> + a nav button
+
+
+Step 8 — Hand the HB1 templates over
+
+Drop tmp/hb1-out/<workflow>/*.template into the Homebase1 PR. The pack team's HB1 owner does the service extraction + Grape route (the .template files have find/replace placeholders).
+
+
+Step 9 — Demo it locally
+
+bin/dev starts Rails + Vite. Flip roles with the top-right RoleSwitcher. Watch your new buttons appear/disappear, click a write, switch to the Audit trail tab, see the row.
+
+
+How long it takes
+
+The AI built Workflow 3 (Location Management) — a workflow with one write and one view — in roughly 9 tasks (~2 hours of execution time). A human engineer who's done it once should be faster than that on the next one.
+
+
+------------------------------------------------------------
+
+
+7. Workflows migrated, by traffic share
+---------------------------------------
+
+Migration priority is purely empirical: which workflows do admins actually use? APM (Datadog) over a 30-day window produced this distribution:
+
+| # | Workflow | % of admin traffic | Status |
+|---|----------|--------------------|--------|
+| 1 | User Account Lookup | 43.8% | Built (Helm side). HB1 changes in docs/handoff/hb1-workflow1-user-lookup.md. |
+| 2 | Company / Merchant Profile | 26.5% | Built (Helm side). HB1 changes in docs/handoff/hb1-workflow2-company-merchant.md. |
+| 3 | Location Management | 13.8% | Built (Helm side). HB1 changes in docs/handoff/hb1-workflow3-location-management.md. |
+| 4–N | Long tail (Cash Out, Hiring, Stytch, etc.) | ~16% combined | Each pack team owns its migration via the scaffold. |
+
+
+Sub-workflows within each migrated workflow
+
+The original spec captured the headline action per workflow; v1.1 (today) added the deeper sub-actions APM revealed. For each workflow, the actions covered are:
+
+User Account Lookup (43.8%)
+- View user detail — identity, memberships, jobs, bank account presence, MFA status (61.5% of user-workflow traffic)
+- Edit user — email / phone / full name (with diff audit)
+- Resend verification email + Resend verification SMS
+- Impersonate user (god-mode login, gated)
+
+Company / Merchant Profile (26.5%)
+- View company detail — tier, subscription, locations, payment attempts
+- View merchant profile — check entity, payroll readiness, missing-data flags, billing, recent invoices
+- View sales tax data — per-location records, exemptions (tiered visibility)
+- View biller details — locations, credit cards (PII-gated last 4), tier history
+- Change subscription tier (with before/after audit)
+
+Location Management (13.8%)
+- View location detail — name, address, tier, jobs, partner, users at this location (61.5% of location-workflow traffic)
+- Impersonate a user at the location (god-mode login, audited to the location)
+- Archive / unarchive jobs at the location
+
+Combined, these are ~84% of all admin actions Homebase performs in any given month.
+
+
+------------------------------------------------------------
+
+
+8. How Helm is a microservice
+-----------------------------
+
+Helm is its own service. It does not run inside HB1, does not share a database with HB1, and can be deployed and scaled independently.
+
+
+Process model
+
+- One Rails 7.2 process, API-only (config.api_only = true). No views, no asset pipeline. The frontend is served separately as a static Vite build (or proxied through Vite in development).
+- Puma web server, listens on a single port (:3001 in dev).
+- One React + Vite app (client-helm/), served on :5173 in dev, proxies /helm_api/* to the Rails process.
+- Both processes started together via bin/dev (foreman + Procfile.dev).
+
+
+Data ownership
+
+Helm owns exactly three tables in its own Postgres database:
+
+| Table | Purpose |
+|-------|---------|
+| admin_users | The Helm-internal identity row per admin (Stytch subject in production; one row per role for the demo). |
+| audit_events | One row per audited write. Indexed on (resource_type, resource_id) and admin_user_id and occurred_at. |
+| sessions | Stub for future Stytch session storage. |
+
+Helm stores zero domain rows — no users, no companies, no locations, no jobs. Those live in HB1. Helm fetches them on demand and never persists them.
+
+
+Independence
+
+Because Helm has its own DB and process:
+
+- It can be deployed without coordinating an HB1 release.
+- Scaling Helm doesn't affect HB1 capacity (and vice versa).
+- A Helm outage degrades admin workflows but leaves the user-facing product untouched.
+- The audit log lives on Helm's side, so even if HB1 has an outage mid-write, the partial state is reconstructible from Helm's audit + Datadog correlation IDs.
+
+
+Standalone observability
+
+Every Helm request gets:
+- A request_id (tied to Datadog trace ID).
+- A Datadog span around the Rails request.
+- A Datadog::Tracing span around each HB1 call (hb1.request resource).
+- A structured JSON log line per audited write (event: "helm.audit").
+- A lograge-augmented JSON log line per request, tagged with admin_user_id, role, request_id, workflow.
+
+
+What's NOT in Helm
+
+- No business logic. All domain rules live on HB1.
+- No background workers (yet). Sidekiq is in the Gemfile but unused — the MVP is fully synchronous.
+- No third-party integrations. Stripe, Twilio, SendGrid, Plaid — all called via HB1.
+- No exported API. Helm is a closed BFF for the Helm React app and (eventually) other internal admin clients. It does not serve external traffic.
+
+
+------------------------------------------------------------
+
+
+9. How Helm works with Homebase1
+--------------------------------
+
+HB1 remains the source of truth for everything that matters. Helm is a thin reader-and-orchestrator on top.
+
+
+The contract
+
+Helm calls HB1 over HTTP, using the existing app/api/rpa_api/v1/* Grape namespace. Authentication is a Bearer <RPA_API_TOKEN>. JSON in, JSON out. There is no shared database, no Ruby cross-import, no RPC framework — just REST.
+
+Helm  ──▶  GET  https://hb1/api/rpa_api/v1/users/42
+                Authorization: Bearer <token>
+                Accept: application/json
+
+HB1   ──▶  200  Content-Type: application/json
+                { "id": 42, "email": "...", "phone": "...", ... }
+
+
+The Strangler Fig pattern
+
+Each workflow Helm migrates follows the same pattern on the HB1 side, without breaking the existing ActiveAdmin panel:
+
+1. Find the existing admin action (e.g., app/admin/users.rb has a member_action :send_verification_sms block with the actual logic inline).
+2. Extract the body into a service object at app/services/<pack>/<resources>/<verb>.rb.
+3. Add a Grape route at app/api/rpa_api/v1/<resources>_api.rb that calls the service.
+4. Replace the admin action's body with a one-liner: <Pack>::<Resources>::<Verb>.call(...).
+
+After this sequence, both the old ActiveAdmin UI and Helm's new BFF call the same service object. ActiveAdmin doesn't break. Cutting the admin panel over to Helm becomes a UI-layer decision, not a re-implementation.
+
+
+Why this avoids a "big bang"
+
+- Pack teams migrate at their own pace.
+- There's no flag day where ActiveAdmin is shut off.
+- Bug-for-bug compatibility is automatic: the underlying service does the same thing whether you call it from ActiveAdmin or from Helm.
+- The HB1-side changes are small, additive, and reviewed by the pack team that owns the code.
+
+
+The MVP's HB1 lift
+
+For each workflow, the actual HB1 work is documented in a handoff doc:
+
+- Workflow 1 (User): docs/handoff/hb1-workflow1-user-lookup.md — extract Identity::Users::SendVerificationSms + Identity::Users::IssueImpersonationToken, add three POST routes (verification_sms, verification_email, impersonation_token), add a PATCH route for edits.
+- Workflow 2 (Company / Merchant): docs/handoff/hb1-workflow2-company-merchant.md — extract Billing::MerchantProfileService (kills the 16%-of-traffic double-presenter bug from the Path-Forward doc) + Billing::TierChangeService, add merchant_profile + billing_tier + sales_tax + biller GETs/POSTs.
+- Workflow 3 (Location): docs/handoff/hb1-workflow3-location-management.md — create the file app/api/rpa_api/v1/locations_api.rb (no such file exists today) with GET + archive_jobs + unarchive_jobs routes; extract Locations::ArchiveJobsService.
+
+These handoffs are intentionally small and self-contained. No HB1 architectural changes. No DB migrations. No new gems.
+
+
+------------------------------------------------------------
+
+
+10. How reads and writes happen
+-------------------------------
+
+This is the actual request topology, the same shape for every workflow.
+
+
+Read path (e.g., view a user)
+
+Browser
+   │  GET /helm_api/v1/users/42       Cookie: HELM_DEMO_ROLE=cs_t2_payroll
+   ▼
+Vite dev proxy  (:5173 → :3001)
+   ▼
+Helm Rails (:3001)
+   │
+   ├──► DemoIdentity middleware
+   │       reads HELM_DEMO_ROLE cookie
+   │       sets env[:helm_principal] = Principal(id, role, stytch_subject)
+   │       sets CurrentRequest.ip + .request_id (thread-local)
+   │
+   ├──► Grape::UsersApi.get
+   │       check_permission!("account.view_user", scope: { human_id: 42 })
+   │       └─► PermissionService.check! → YamlBackend.check
+   │              raises Forbidden if denied → renders 403
+   │
+   ├──► Hb1Client::Users.show(42)
+   │       Faraday GET https://hb1.../api/rpa_api/v1/users/42
+   │       Bearer <RPA_API_TOKEN>
+   │       wrapped in Datadog span "hb1.request"
+   │
+   └──► Entities::User.represent(user_hash, role: current_principal)
+           omits phone/ssn/bank when role lacks view_pii
+           adds _redacted: ["phone", "ssn_last4", "bank_last4"]
+           returns Grape::Entity → JSON
+   │
+   ▼
+Browser  (React)
+   │  PiiField reads _redacted, renders "••••" placeholders
+   │  Show page renders identity/memberships/jobs tabs
+   ▼
+
+
+Write path (e.g., change billing tier)
+
+Same as read, plus:
+
+   ├──► (capture before-state) Hb1Client::Companies.show(42)
+   │       Used for payload_before in the audit row
+   │
+   ├──► (mutate) Hb1Client::Companies.change_billing_tier(42, to_tier: "professional")
+   │       Faraday POST https://hb1.../api/rpa_api/v1/companies/42/billing_tier
+   │       body: { to_tier: "professional" }
+   │
+   ├──► AuditService.record(
+   │       actor:          lookup_admin_user!,
+   │       workflow:       "company_merchant",
+   │       action:         "company.billing_tier_changed",
+   │       resource_type:  "Company",
+   │       resource_id:    42,
+   │       payload_before: { tier: "starter" },
+   │       payload_after:  { tier: "professional" }
+   │     )
+   │       writes AuditEvent row to Helm's Postgres
+   │       emits structured JSON log line:
+   │         { event: "helm.audit", admin_user_id: 3, role: "cs_t2_payments",
+   │           workflow: "company_merchant",
+   │           action: "company.billing_tier_changed",
+   │           resource: "Company#42", request_id: "..." }
+   │
+   └──► present result, with: Entities::BillingTierChange
+
+
+Properties of this design
+
+- Permission check is always first. Nothing about the request reaches HB1 if the role can't do it.
+- Audit always wins. The audit row is written before the response is rendered. A network failure between Helm and the browser does not lose the audit.
+- Audits include diffs when appropriate. Tier changes have payload_before AND payload_after. One-shot actions (verification SMS, impersonation) have only payload_after. Reads are not audited.
+- The audit row credits a person. admin_user_id resolves to email + name via a join — the React UI shows Anumita Srivastava · asrivastava@helm.local · #3 for every row.
+- No domain state in Helm. HB1 is asked fresh on every request. There's no Helm-side cache that could go stale.
+
+
+------------------------------------------------------------
+
+
+11. AuthZ integration
+---------------------
+
+AuthZ is the new Homebase authorization service (gRPC, principal-based, scope-aware). It's not yet ready for admin-rep principals, but Helm has been designed to migrate to it without a code change.
+
+
+Today
+
+PermissionService has a backend swap:
+
+def self.backend
+  @backend ||= case ENV.fetch("HELM_PERMISSION_BACKEND", "yaml")
+               when "yaml"  then YamlBackend.new(...)
+               when "authz" then AuthZBackend.new
+               end
+end
+
+YamlBackend is what runs today. AuthZBackend is stubbed (raises NotImplementedError on every method) but exists so the swap path is real — a deploy-time decision, not a code change.
+
+
+The migration plan
+
+When AuthZ supports admin-rep principals:
+
+1. Seed AuthZ from the YAML. A rake authz:sync task (to be written) reads config/permissions.yml and writes the same role × permissions × scope shape into AuthZ via gRPC.
+2. Implement AuthZBackend#check. Replace the NotImplementedError with a gRPC call. The method signature (check(principal, permission_key, scope)) doesn't change.
+3. Flip the env var. HELM_PERMISSION_BACKEND=authz on the deploy.
+4. Cut over a role at a time. Wildcard YAML rules let us run a hybrid for a release if needed.
+
+
+Why the YAML schema matches AuthZ's
+
+The spec was explicit about this from day one. AuthZ models:
+
+- A role (e.g., cs_t2_escalations).
+- A list of permissions the role holds (e.g., account.impersonate_user).
+- A scope type per permission (e.g., human, company, location) — i.e., is this a permission about a specific user, a specific company, or a specific location?
+
+The YAML file uses the same vocabulary:
+
+permissions:
+  - { key: account.impersonate_user, scope: human }
+  - { key: billing.update_subscription_tier, scope: company }
+
+When the AuthZ migration runs, the scope field becomes the AuthZ scope type and the rest is straightforward. The call sites in Helm (check_permission!("account.impersonate_user", scope: { human_id: 42 })) already pass the scope as a Hash with the resource ID — AuthZ will use that ID for row-level scoping (currently a no-op in the YAML backend, but the data is there).
+
+
+What changes for callers
+
+Nothing. The call sites:
+
+check_permission!("account.impersonate_user", scope: { human_id: params[:id] })
+
+…work against either backend. The promise of the YAML model is that swapping it for the real thing is a deploy decision, not a refactor.
+
+
+What changes for the YAML
+
+The YAML stops being the source of truth. It becomes a fixture — easy to reset AuthZ to a known state via rake authz:sync, used in tests, and useful for local development without AuthZ. AuthZ itself owns role definitions in production, edited via whatever UI AuthZ provides.
+
+
+------------------------------------------------------------
+
+
+What's not in scope
+-------------------
+
+For honesty, here's what the MVP explicitly does not do:
+
+- Okta SSO — replaced by a cookie-based DemoIdentity middleware. The contract (request.env[:helm_principal]) is unchanged when Stytch JWT replaces the demo middleware.
+- Lattice impersonation — Helm reuses HB1's existing login_user URL-minting; Lattice integration is a future swap of where the URL comes from.
+- Row-level scoping — scope IDs are logged and passed through but not enforced by YamlBackend. AuthZBackend will enforce them when it lands.
+- Session-exit audit logging — known gap; requires HB1 to call back to Helm on logout.
+- End-to-end browser tests — Vitest unit + RSpec request only. No Playwright/Cypress yet.
+- CI / deploy infra — demo is local-only; production deploy is a separate plan.
+- GraphQL — explicitly excluded. All Helm ↔ HB1 traffic is REST.
+
+These are listed in the original spec doc (docs/2026-06-09-helm-mvp-design.md §10) and tagged for follow-up.
+
+
+------------------------------------------------------------
+
+
+Files worth knowing
+-------------------
+
+- docs/2026-06-09-helm-mvp-design.md — the spec (v1.1, kept in sync with the code)
+- docs/superpowers/plans/2026-06-09-helm-*.md — the 5 implementation plans
+- docs/handoff/TEMPLATE.md — the per-team migration checklist
+- docs/handoff/user_lookup.md — Workflow 1 worked example
+- docs/handoff/hb1-workflow*.md — three HB1-side punch lists (one per workflow)
+- config/permissions.yml — the entire authorization model
+- scripts/scaffold-workflow.rb — generator for new workflows
+- app/services/permission_service.rb — the single permission check point
+- app/services/audit_service.rb — the single audit write point
+- app/api/helm_api/v1/ — the BFF Grape namespace
+- client-helm/src/ — the React app
+
+
+------------------------------------------------------------
+
+
+Closing thought
+---------------
+
+The unconventional thing about Helm isn't the architecture — service-mediated authorization, YAML-driven permissions, role-keyed PII masking, audited writes — those are well-established patterns. The unconventional thing is the build process: a structured AI agent followed a written spec through five tested implementation plans, produced the canonical examples, then built a scaffold so the same pattern can be applied by the next workflow without rederiving anything. The MVP is a working product and a reusable handoff package. Both came from the same week of work.
+
+If your team owns admin workflows that today live in app/admin/*.rb, the path to migrating them looks like:
+
+1. Read docs/handoff/user_lookup.md (the worked example).
+2. Run scripts/scaffold-workflow.rb <your_workflow> <your_resource>.
+3. Fill in the deltas listed in docs/handoff/<your_workflow>.md.
+4. Hand the tmp/hb1-out/<your_workflow>/*.template files to your HB1 owner.
+5. Demo with bin/dev and the RoleSwitcher.
+
+The same five steps. Whether a human or an AI does them.
