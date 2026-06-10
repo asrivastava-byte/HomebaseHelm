@@ -1,10 +1,21 @@
-# Homebase Helm — 3-4 Minute Live Demo Script
+# Homebase Helm — 4-5 Minute Live Demo Script
 
 **Format:** speaker drives the browser; **Do** = the action, **Say** = the talking point.
 
-**Themes to hit:** **no god mode** · **auditing** · **impersonation** · **workflows, not a UI for ActiveRecord** · **AI-led project** · **RBAC is config, not code** · **swap-ready for AuthZ** · **standalone microservice** · **HB1 is the source of truth (REST, not DB sharing)** · **Helm owns only admin/audit data**.
+**Themes to hit:**
 
-Three workflow stops: User, Company / Merchant, Location.
+- **no god mode**
+- **auditing**
+- **impersonation**
+- **workflows, not a UI for ActiveRecord**
+- **AI-led project**
+- **RBAC is config, not code**
+- **swap-ready for AuthZ**
+- **standalone microservice**
+- **HB1 is the source of truth (REST, not DB sharing)**
+- **Helm owns only admin / audit data**
+
+Three workflow stops: User · Company / Merchant · Location.
 
 ---
 
@@ -24,11 +35,17 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 **Say:**
 > "Homebase Helm replaces our admin panel for the three workflows that are **84% of admin activity** — User Lookup, Company / Merchant, Location Management. One sentence: **this is workflows, not a UI for ActiveRecord** — every action is a permission, every action is audited, and no one has god mode.
 >
-> Three things to know up front. **One: this is an AI-led project.** I wrote a spec doc; an AI agent (Claude Code with the Superpowers skill suite) decomposed it into five tested implementation plans and built every line of code against them — strict tests-first, atomic commits, scaffold for handoff. I made the product calls; the AI did the long-tail engineering. **Two: the permission model is config, not code.** Everything you're about to see — who can view PII, who can impersonate, who can edit — lives in one YAML file. A CS Tier 4 leader can change it without an engineering ticket. **Three: HB1 stays the source of truth.** Helm is a standalone microservice — its own Rails process, its own Postgres — but it stores zero domain data. Every user, company, location, and job lives on HB1; Helm reads and writes over REST. What Helm *does* own is the admin layer: who the admin is, what they did, and the audit trail of every action."
+> Three things to know up front.
+>
+> **One — this is an AI-led project.** I wrote a spec doc; an AI agent (Claude Code with the Superpowers skill suite) decomposed it into five tested implementation plans and built every line of code against them — strict tests-first, atomic commits, scaffold for handoff. I made the product calls; the AI did the long-tail engineering.
+>
+> **Two — the permission model is config, not code.** Everything you're about to see — who can view PII, who can impersonate, who can edit — lives in one YAML file. A CS Tier 4 leader can change it without an engineering ticket.
+>
+> **Three — HB1 stays the source of truth.** Helm is a standalone microservice — its own Rails process, its own Postgres — but it stores zero domain data. Every user, company, location, and job lives on HB1; Helm reads and writes over REST. What Helm *does* own is the admin layer: who the admin is, what they did, and the audit trail of every action."
 
 ---
 
-## 0:20 — Workflow 1: User Lookup + PII gating (40 sec)
+## 0:30 — Workflow 1: User Lookup + PII gating (40 sec)
 
 **Do:** Type `jane` → click `jane@hb1.test`.
 
@@ -42,7 +59,7 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 
 ---
 
-## 1:00 — No god mode + Impersonation (45 sec)
+## 1:10 — No god mode + Impersonation (45 sec)
 
 **Do:** RoleSwitcher → `cs_t2_escalations`. Page reloads.
 
@@ -65,16 +82,16 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 
 ---
 
-## 1:45 — RBAC is config, not code (20 sec)
+## 1:55 — RBAC is config, not code (20 sec)
 
-**Do:** Open `config/permissions.yml` in your editor *(or just flash it in a terminal: `cat config/permissions.yml`)*. Point at the `cs_t2_escalations` block.
+**Do:** Open `config/permissions.yml` in your editor *(or flash it in a terminal: `cat config/permissions.yml`)*. Point at the `cs_t2_escalations` block.
 
 **Say:**
 > "This is the entire authorization model. One YAML file. The line that just let me impersonate is right here — `account.impersonate_user` on `cs_t2_escalations`. Remove the line, restart Rails, the button I just clicked is gone — no Ruby change, no JS change, no deploy ticket. The schema is AuthZ-shaped, so when AuthZ supports admin reps the migration is a backend swap — `HELM_PERMISSION_BACKEND=authz` — and call sites don't change."
 
 ---
 
-## 2:05 — Workflow 2: Company / Merchant + tiered tabs (50 sec)
+## 2:15 — Workflow 2: Company / Merchant + tiered tabs (50 sec)
 
 **Do:** Nav → **Company / Merchant** → search "acme" → click Acme Diner.
 
@@ -86,18 +103,18 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 **Say (as you walk):**
 > "Company tab: subscription, locations (cross-linked), recent payment attempts including failures. Merchant tab: payroll readiness chip, missing-data flags, check entity. Sales tax tab: per-location records, exemptions. Biller tab: credit cards — last four PII-gated — and tier history.
 >
-> Here's the tiered-visibility piece — the Sales tax and Biller tabs are only here because `cs_t2_escalations` happens to have... actually, they don't have `view_sales_tax`. Let me switch."
+> Here's the tiered-visibility piece — the Sales tax and Biller tabs are only here for billing-sensitive roles. Let me switch."
 
-**Do:** RoleSwitcher → `cs_t2_payroll`. Page reloads — now Sales tax and Biller tabs are visible.
+**Do:** RoleSwitcher → `cs_t2_payroll`. Page reloads — Sales tax and Biller tabs visible.
 
 **Say:**
-> "Tier 2 Payroll. The Sales tax and Biller tabs appeared. Tier 1 Support never sees them at all — not the tab, not the data. **Permission-gated at the route level**, not hidden in JS."
+> "Tier 2 Payroll. Both tabs appeared. Tier 1 Support never sees them at all — not the tab, not the data. **Permission-gated at the route level**, not hidden in JS."
 
 *(If short on time, skip the role switch and just say "if I switched to Tier 1, those tabs would disappear entirely.")*
 
 ---
 
-## 2:55 — Workflow 3: Location + at-context impersonation (45 sec)
+## 3:05 — Workflow 3: Location + at-context impersonation (45 sec)
 
 **Do:** Nav → **Locations** → search "acme" → click Acme Diner — Main St.
 
@@ -154,13 +171,13 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 >
 > **Two — what lives in Helm.** Three tables in Helm's own Postgres: `admin_users`, `audit_events`, `sessions`. Zero domain rows. No users table, no companies table, no jobs. If you `SELECT * FROM users` on Helm's DB, you get nothing — because the users live on HB1.
 >
-> **Three — Helm calls HB1 over REST.** Every read and write goes through `app/api/rpa_api/v1/*` Grape endpoints on HB1, with a Bearer token. We're adding a small number of new routes per workflow — extracted from existing `app/admin/*` action bodies into service objects, exposed over REST. The pack teams own those extractions; punch lists are in `docs/handoff/hb1-workflow*.md`. ActiveAdmin keeps working in parallel — it's a Strangler Fig migration, not a cutover.
+> **Three — Helm calls HB1 over REST.** Every read and write goes through `app/api/rpa_api/v1/*` Grape endpoints on HB1, with a Bearer token. We're adding a small number of new routes per workflow — extracted from existing `app/admin/*` action bodies into service objects. The pack teams own those extractions; punch lists are in `docs/handoff/hb1-workflow*.md`. ActiveAdmin keeps working in parallel — Strangler Fig migration, not a cutover.
 >
-> **Four — AuthZ.** Today permissions live in the YAML you saw a moment ago. The PermissionService has a backend swap built in — `HELM_PERMISSION_BACKEND=authz` flips it to gRPC. The YAML schema is already AuthZ-shaped (role × permissions × scope_type), so the migration is a `rake authz:sync` task plus the env flag. **No call-site changes** — `check_permission!` in the BFF doesn't know which backend it's talking to."
+> **Four — AuthZ.** Today permissions live in the YAML you saw a moment ago. PermissionService has a backend swap built in — `HELM_PERMISSION_BACKEND=authz` flips it to gRPC. The YAML schema is already AuthZ-shaped (role × permissions × scope_type), so the migration is a `rake authz:sync` task plus the env flag. **No call-site changes** — `check_permission!` in the BFF doesn't know which backend it's talking to."
 
 ---
 
-## 4:30 — Close (25 sec)
+## 4:30 — Close (30 sec)
 
 **Say:**
 > "So — three workflows, one pattern.
@@ -171,9 +188,9 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 >
 > **Auditing.** Every write → a row credited to a person, before the response renders. Audit goes to the resource that frames the workflow — User if you started from User, Location if you started from Location.
 >
-> **RBAC is config, not code.** One YAML file. CS Tier 4 can PR a permission change without an engineering ticket. The schema is AuthZ-shaped, so when AuthZ supports admin reps the migration is a deploy-flag (`HELM_PERMISSION_BACKEND=authz`), not a refactor.
+> **RBAC is config, not code.** One YAML file. CS Tier 4 can PR a permission change without an engineering ticket. AuthZ-shaped, so the migration to real AuthZ is a deploy-flag, not a refactor.
 >
-> **Helm is a standalone microservice.** Its own Rails process, its own Postgres, its own deploy — independent of HB1. Three tables only — `admin_users`, `audit_events`, `sessions`. Zero domain data. HB1 is the source of truth for users, companies, locations, jobs, billing — Helm calls HB1 over REST and audits the result. Strangler Fig: ActiveAdmin keeps working while pack teams migrate at their own pace.
+> **Helm is a standalone microservice.** Its own Rails process, its own Postgres, its own deploy. Three tables only — admin_users, audit_events, sessions. Zero domain data. HB1 is the source of truth for users, companies, locations, jobs, billing — Helm calls HB1 over REST and audits the result. Strangler Fig: ActiveAdmin keeps working while pack teams migrate at their own pace.
 >
 > **And this whole thing is AI-led.** I wrote the spec; an AI agent decomposed it into five tested plans and built every commit — atomic, tests-first, traceable back to a plan step. The MVP ships with a scaffold and worked-example handoff docs so any pack team can migrate their remaining workflows the same way — whether a human or an AI does it. The methodology is the reusable part."
 
@@ -183,7 +200,11 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 
 - **HB1 down?** Helm returns 502; audit log unaffected; no writes happen. Helm is not a cache by design.
 - **Permission changes?** Edit `config/permissions.yml`, restart Rails. CS Tier 4 can PR it; no engineering ticket. Schema is AuthZ-shaped, so migration to real AuthZ is a backend swap (`HELM_PERMISSION_BACKEND=authz`).
+- **Why a microservice and not part of HB1?** Independent release cycle; scaled separately; isolated blast radius for outages; admin tooling shouldn't share a connection pool with the user-facing product.
+- **What does Helm's DB store?** `admin_users` (who the admin is), `audit_events` (every write), `sessions` (Stytch session stub). No domain rows.
 - **Other teams?** `scripts/scaffold-workflow.rb <workflow> <resource>` stamps out BFF + entity + React + handoff doc. `docs/handoff/user_lookup.md` is the worked example.
+
+---
 
 ## If something breaks
 
