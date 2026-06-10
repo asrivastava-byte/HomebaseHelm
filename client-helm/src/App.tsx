@@ -8,22 +8,68 @@ import { CompanyMerchantIndexPage } from "./pages/CompanyMerchant/IndexPage";
 import { CompanyMerchantShowPage } from "./pages/CompanyMerchant/ShowPage";
 import { LocationManagementIndexPage } from "./pages/LocationManagement/IndexPage";
 import { LocationManagementShowPage } from "./pages/LocationManagement/ShowPage";
+import { homebaseColors } from "./theme";
 
 function Header() {
   const { role } = useSession();
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" p={2} borderBottom="1px solid #eee">
+    <Stack
+      direction="row"
+      justifyContent="space-between"
+      alignItems="center"
+      px={3}
+      py={1.5}
+      sx={{
+        bgcolor: homebaseColors.deepPurple,
+        color: homebaseColors.textOnDark,
+      }}
+    >
       <Stack direction="row" spacing={3} alignItems="center">
-        <Typography variant="h5">Helm</Typography>
-        <Button component={RouterLink} to="/users"     size="small">User lookup</Button>
-        <Button component={RouterLink} to="/companies" size="small">Company / Merchant</Button>
-        <Button component={RouterLink} to="/locations" size="small">Locations</Button>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Box
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: "8px",
+              bgcolor: homebaseColors.brightPurple,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              color: "#fff",
+              fontSize: 18,
+              letterSpacing: -0.5,
+            }}
+          >
+            h
+          </Box>
+          <Typography variant="h5" sx={{ color: "inherit" }}>Homebase Helm</Typography>
+        </Stack>
+        <NavLink to="/users">User lookup</NavLink>
+        <NavLink to="/companies">Company / Merchant</NavLink>
+        <NavLink to="/locations">Locations</NavLink>
       </Stack>
       <Stack direction="row" spacing={2} alignItems="center">
-        <Typography color="text.secondary">role: {role}</Typography>
+        <Typography sx={{ color: "rgba(255,255,255,0.7)" }}>role: {role}</Typography>
         <RoleSwitcher />
       </Stack>
     </Stack>
+  );
+}
+
+function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Button
+      component={RouterLink}
+      to={to}
+      size="small"
+      sx={{
+        color: "rgba(255,255,255,0.85)",
+        "&:hover": { bgcolor: "rgba(255,255,255,0.08)", color: "#fff" },
+      }}
+    >
+      {children}
+    </Button>
   );
 }
 

@@ -46,6 +46,43 @@ module HelmApi
             )
             present result, with: Entities::ArchiveJobsResult
           end
+
+          post :unarchive_jobs do
+            check_permission!("account.archive_location_jobs", scope: { location_id: params[:id] })
+            result = Hb1Client::Locations.unarchive_jobs(params[:id])
+            AuditService.record(
+              actor:         lookup_admin_user!,
+              workflow:      "location_management",
+              action:        "location.jobs_unarchived",
+              resource_type: "Location",
+              resource_id:   params[:id],
+              payload_after: {
+                unarchived_job_count: result["unarchived_job_count"],
+                unarchived_at:        result["unarchived_at"]
+              }
+            )
+            present result, with: Entities::UnarchiveJobsResult
+          end
+
+          params do
+            requires :user_id, type: Integer
+          end
+          post :impersonate do
+            check_permission!("account.impersonate_user", scope: { location_id: params[:id], human_id: params[:user_id] })
+            token = Hb1Client::Users.issue_impersonation_token(params[:user_id])
+            AuditService.record(
+              actor:         lookup_admin_user!,
+              workflow:      "location_management",
+              action:        "location.user_impersonated",
+              resource_type: "Location",
+              resource_id:   params[:id],
+              payload_after: {
+                user_id:    params[:user_id],
+                expires_at: token["expires_at"]
+              }
+            )
+            present token, with: Entities::ImpersonationToken
+          end
         end
       end
     end
