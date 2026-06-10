@@ -2,7 +2,7 @@
 
 **Format:** speaker drives the browser; **Do** = the action, **Say** = the talking point.
 
-**Themes to hit:** **no god mode** · **auditing** · **impersonation** · **workflows, not a UI for ActiveRecord**.
+**Themes to hit:** **no god mode** · **auditing** · **impersonation** · **workflows, not a UI for ActiveRecord** · **AI-led project** · **RBAC is config, not code**.
 
 Three workflow stops: User, Company / Merchant, Location.
 
@@ -19,10 +19,12 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 
 ---
 
-## 0:00 — Frame it (20 sec)
+## 0:00 — Frame it (30 sec)
 
 **Say:**
-> "Homebase Helm replaces our admin panel for the three workflows that are **84% of admin activity** — User Lookup, Company / Merchant, Location Management. One sentence: **this is workflows, not a UI for ActiveRecord** — every action is a permission, every action is audited, and no one has god mode."
+> "Homebase Helm replaces our admin panel for the three workflows that are **84% of admin activity** — User Lookup, Company / Merchant, Location Management. One sentence: **this is workflows, not a UI for ActiveRecord** — every action is a permission, every action is audited, and no one has god mode.
+>
+> Two things to know up front. **One: this is an AI-led project.** I wrote a spec doc; an AI agent (Claude Code with the Superpowers skill suite) decomposed it into five tested implementation plans and built every line of code against them — strict tests-first, atomic commits, scaffold for handoff. I made the product calls; the AI did the long-tail engineering. **Two: the permission model is config, not code.** Everything you're about to see — who can view PII, who can impersonate, who can edit — lives in one YAML file. A CS Tier 4 leader can change it without an engineering ticket."
 
 ---
 
@@ -63,7 +65,16 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 
 ---
 
-## 1:45 — Workflow 2: Company / Merchant + tiered tabs (50 sec)
+## 1:45 — RBAC is config, not code (20 sec)
+
+**Do:** Open `config/permissions.yml` in your editor *(or just flash it in a terminal: `cat config/permissions.yml`)*. Point at the `cs_t2_escalations` block.
+
+**Say:**
+> "This is the entire authorization model. One YAML file. The line that just let me impersonate is right here — `account.impersonate_user` on `cs_t2_escalations`. Remove the line, restart Rails, the button I just clicked is gone — no Ruby change, no JS change, no deploy ticket. The schema is AuthZ-shaped, so when AuthZ supports admin reps the migration is a backend swap — `HELM_PERMISSION_BACKEND=authz` — and call sites don't change."
+
+---
+
+## 2:05 — Workflow 2: Company / Merchant + tiered tabs (50 sec)
 
 **Do:** Nav → **Company / Merchant** → search "acme" → click Acme Diner.
 
@@ -86,7 +97,7 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 
 ---
 
-## 2:35 — Workflow 3: Location + at-context impersonation (45 sec)
+## 2:55 — Workflow 3: Location + at-context impersonation (45 sec)
 
 **Do:** Nav → **Locations** → search "acme" → click Acme Diner — Main St.
 
@@ -110,7 +121,7 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 
 ---
 
-## 3:20 — Close (20 sec)
+## 3:40 — Close (25 sec)
 
 **Say:**
 > "So — three workflows, one pattern.
@@ -121,7 +132,9 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 >
 > **Auditing.** Every write → a row credited to a person, before the response renders. Audit goes to the resource that frames the workflow — User if you started from User, Location if you started from Location.
 >
-> Built end-to-end by an AI agent against a written spec, with tests-first discipline. Ships with a scaffold so pack teams can migrate the remaining 16% of admin traffic the same way."
+> **RBAC is config, not code.** One YAML file. CS Tier 4 can PR a permission change without an engineering ticket. Schema is AuthZ-shaped so the migration to real AuthZ is a deploy-flag, not a refactor.
+>
+> **And this whole thing is AI-led.** I wrote the spec; an AI agent decomposed it into five tested plans and built every commit — atomic, tests-first, traceable back to a plan step. The MVP ships with a scaffold and worked-example handoff docs so any pack team can migrate their remaining workflows the same way — whether a human or an AI does it. The methodology is the reusable part."
 
 ---
 
