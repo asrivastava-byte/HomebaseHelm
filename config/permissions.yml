@@ -2,6 +2,8 @@ permissions:
   - { key: account.view_user,                  scope: human }
   - { key: account.view_pii,                   scope: human }
   - { key: account.verify_phone,               scope: human }
+  - { key: account.resend_verification_email,  scope: human }
+  - { key: account.edit_user,                  scope: human }
   - { key: account.impersonate_user,           scope: human }
   - { key: account.view_company,               scope: company }
   - { key: account.view_merchant_profile,      scope: company }
@@ -14,6 +16,7 @@ roles:
     permissions:
       - account.view_user
       - account.verify_phone
+      - account.resend_verification_email
       - account.view_company
       - account.view_merchant_profile
       - account.view_location
@@ -23,6 +26,8 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
+      - account.edit_user
       - account.view_company
       - account.view_merchant_profile
       - account.view_location
@@ -32,6 +37,8 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
+      - account.edit_user
       - account.view_company
       - account.view_merchant_profile
       - billing.update_subscription_tier
@@ -42,6 +49,8 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
+      - account.edit_user
       - account.impersonate_user
       - account.view_company
       - account.view_merchant_profile
@@ -67,6 +76,7 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
       - account.view_company
       - account.view_merchant_profile
       - account.view_location
@@ -76,6 +86,8 @@ roles:
       - account.view_user
       - account.view_pii
       - account.verify_phone
+      - account.resend_verification_email
+      - account.edit_user
       - account.impersonate_user
       - account.view_company
       - account.view_merchant_profile

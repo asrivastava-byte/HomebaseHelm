@@ -20,6 +20,10 @@ module Hb1Client
       request(:post, path, body: body)
     end
 
+    def self.patch(path, body: {})
+      request(:patch, path, body: body)
+    end
+
     def self.request(method, path, params: {}, body: {})
       response = connection.public_send(method, path) do |req|
         req.headers["Authorization"] = "Bearer #{ENV.fetch('HB1_API_TOKEN')}"

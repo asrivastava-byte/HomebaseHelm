@@ -30,6 +30,37 @@ module HelmApi
             present user, with: Entities::User, role: current_principal
           end
 
+          params do
+            optional :email,     type: String
+            optional :phone,     type: String
+            optional :full_name, type: String
+            at_least_one_of :email, :phone, :full_name
+          end
+          patch do
+            check_permission!("account.edit_user", scope: { human_id: params[:id] })
+
+            before = Hb1Client::Users.show(params[:id])
+            attrs  = params.slice(:email, :phone, :full_name).to_h.compact
+            after  = Hb1Client::Users.update(params[:id], attrs)
+
+            changed = attrs.keys.each_with_object({}) do |k, h|
+              key = k.to_s
+              h[key] = { from: before[key], to: after[key] } if before[key] != after[key]
+            end
+
+            AuditService.record(
+              actor:          lookup_admin_user!,
+              workflow:       "user_lookup",
+              action:         "user.edited",
+              resource_type:  "User",
+              resource_id:    params[:id],
+              payload_before: changed.transform_values { |v| v[:from] },
+              payload_after:  changed.transform_values { |v| v[:to] }
+            )
+
+            present after, with: Entities::User, role: current_principal
+          end
+
           post :verification_sms do
             check_permission!("account.verify_phone", scope: { human_id: params[:id] })
             result = Hb1Client::Users.send_verification_sms(params[:id])
@@ -42,6 +73,24 @@ module HelmApi
               payload_after: { sent_at: result["sent_at"], provider_request_id: result["provider_request_id"] }
             )
             present result, with: Entities::VerificationResult
+          end
+
+          post :verification_email do
+            check_permission!("account.resend_verification_email", scope: { human_id: params[:id] })
+            result = Hb1Client::Users.send_verification_email(params[:id])
+            AuditService.record(
+              actor:         lookup_admin_user!,
+              workflow:      "user_lookup",
+              action:        "user.verification_email_sent",
+              resource_type: "User",
+              resource_id:   params[:id],
+              payload_after: {
+                sent_at:             result["sent_at"],
+                provider_request_id: result["provider_request_id"],
+                to_email:            result["to_email"]
+              }
+            )
+            present result, with: Entities::EmailVerificationResult
           end
 
           post :impersonate do
