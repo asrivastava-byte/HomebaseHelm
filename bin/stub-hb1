@@ -1,0 +1,516 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "webrick"
+require "json"
+require "securerandom"
+
+# ---------------------------------------------------------------------------
+# Fixture data — edit here to change what the demo shows
+# ---------------------------------------------------------------------------
+
+USERS = {
+  42 => {
+    "id" => 42, "email" => "jane@hb1.test", "full_name" => "Jane Doe",
+    "phone" => "+15555550142", "ssn_last4" => "1234", "bank_last4" => "5678",
+    "created_at" => "2024-03-15T09:00:00Z", "last_sign_in_at" => "2026-06-10T08:45:00Z",
+    "stytch_subject" => "stytch-user-jane-42", "mfa_status" => "enabled",
+    "bank_account_present" => true,
+    "memberships" => [
+      { "company_id" => 42, "company_name" => "Acme Diner",
+        "location_id" => 42, "location_name" => "Acme Diner — Main St",
+        "role_at_location" => "manager", "since" => "2024-03-15T09:00:00Z" },
+      { "company_id" => 42, "company_name" => "Acme Diner",
+        "location_id" => 77, "location_name" => "Acme Diner — East Side",
+        "role_at_location" => "employee", "since" => "2025-01-10T09:00:00Z" }
+    ],
+    "jobs" => [
+      { "id" => 101, "title" => "Line Cook", "status" => "active",
+        "location_id" => 42, "location_name" => "Acme Diner — Main St",
+        "scheduled_for" => "2026-06-12T10:00:00Z" },
+      { "id" => 102, "title" => "Shift Lead", "status" => "active",
+        "location_id" => 77, "location_name" => "Acme Diner — East Side",
+        "scheduled_for" => "2026-06-13T14:00:00Z" }
+    ]
+  },
+  43 => {
+    "id" => 43, "email" => "marco@hb1.test", "full_name" => "Marco Reyes",
+    "phone" => "+15555550143", "ssn_last4" => "4321", "bank_last4" => "8765",
+    "created_at" => "2024-06-01T09:00:00Z", "last_sign_in_at" => "2026-06-09T17:30:00Z",
+    "stytch_subject" => "stytch-user-marco-43", "mfa_status" => "disabled",
+    "bank_account_present" => true,
+    "memberships" => [
+      { "company_id" => 42, "company_name" => "Acme Diner",
+        "location_id" => 42, "location_name" => "Acme Diner — Main St",
+        "role_at_location" => "employee", "since" => "2024-06-01T09:00:00Z" }
+    ],
+    "jobs" => [
+      { "id" => 103, "title" => "Server", "status" => "active",
+        "location_id" => 42, "location_name" => "Acme Diner — Main St",
+        "scheduled_for" => "2026-06-12T16:00:00Z" }
+    ]
+  },
+  44 => {
+    "id" => 44, "email" => "priya@hb1.test", "full_name" => "Priya Kapoor",
+    "phone" => "+15555550144", "ssn_last4" => "9876", "bank_last4" => "3456",
+    "created_at" => "2025-01-10T09:00:00Z", "last_sign_in_at" => "2026-06-10T09:00:00Z",
+    "stytch_subject" => "stytch-user-priya-44", "mfa_status" => "enabled",
+    "bank_account_present" => false,
+    "memberships" => [
+      { "company_id" => 42, "company_name" => "Acme Diner",
+        "location_id" => 77, "location_name" => "Acme Diner — East Side",
+        "role_at_location" => "manager", "since" => "2025-01-10T09:00:00Z" }
+    ],
+    "jobs" => [
+      { "id" => 104, "title" => "Floor Manager", "status" => "active",
+        "location_id" => 77, "location_name" => "Acme Diner — East Side",
+        "scheduled_for" => "2026-06-12T08:00:00Z" }
+    ]
+  }
+}
+
+COMPANIES = {
+  42 => {
+    "id" => 42, "name" => "Acme Diner", "tier" => "professional",
+    "owner_user_id" => 42, "created_at" => "2024-03-15T09:00:00Z",
+    "stripe_customer_id" => "cus_acme42",
+    "subscription" => {
+      "status" => "active",
+      "started_at" => "2024-03-15T09:00:00Z",
+      "renews_at" => "2026-07-01T00:00:00Z"
+    },
+    "locations" => [
+      { "id" => 42, "name" => "Acme Diner — Main St" },
+      { "id" => 77, "name" => "Acme Diner — East Side" }
+    ],
+    "payment_attempts" => [
+      { "id" => 201, "amount_cents" => 14900, "status" => "succeeded",
+        "attempted_at" => "2026-06-01T00:00:00Z", "failure_reason" => nil },
+      { "id" => 200, "amount_cents" => 14900, "status" => "failed",
+        "attempted_at" => "2026-05-01T00:00:00Z", "failure_reason" => "insufficient_funds" }
+    ],
+    "_merchant_profile" => {
+      "tier" => "professional", "billing_state" => "active",
+      "subscription_started_at" => "2024-03-15T09:00:00Z",
+      "subscription_renews_at" => "2026-07-01T00:00:00Z",
+      "check_entity_id" => 17,
+      "payroll_readiness" => "ready",
+      "missing_data_flags" => [],
+      "check_entity" => { "id" => 17, "name" => "Acme Diner LLC", "ein_last4" => "7890", "status" => "active" },
+      "payment_method" => { "last4" => "4242", "brand" => "visa" },
+      "recent_invoices" => [
+        { "id" => 301, "amount_cents" => 14900, "status" => "paid", "paid_at" => "2026-06-01T00:00:00Z" },
+        { "id" => 300, "amount_cents" => 14900, "status" => "paid", "paid_at" => "2026-05-03T00:00:00Z" }
+      ]
+    },
+    "_sales_tax" => {
+      "company_id" => 42,
+      "aggregate_tax_collected_cents" => 284700,
+      "per_location" => [
+        { "location_id" => 42, "location_name" => "Acme Diner — Main St",
+          "tax_authority" => "CA Board of Equalization", "tax_id" => "CA-12345678",
+          "exempt" => false, "last_filed_at" => "2026-04-15T00:00:00Z" },
+        { "location_id" => 77, "location_name" => "Acme Diner — East Side",
+          "tax_authority" => "CA Board of Equalization", "tax_id" => "CA-87654321",
+          "exempt" => false, "last_filed_at" => "2026-04-15T00:00:00Z" }
+      ],
+      "exemptions" => [
+        { "kind" => "resale", "granted_at" => "2024-06-01T00:00:00Z", "expires_at" => "2027-06-01T00:00:00Z" }
+      ]
+    },
+    "_biller" => {
+      "company_id" => 42,
+      "locations" => [
+        { "id" => 42, "name" => "Acme Diner — Main St" },
+        { "id" => 77, "name" => "Acme Diner — East Side" }
+      ],
+      "tier_history" => [
+        { "tier" => "professional", "started_at" => "2025-06-01T00:00:00Z", "ended_at" => nil },
+        { "tier" => "starter",      "started_at" => "2024-03-15T09:00:00Z", "ended_at" => "2025-06-01T00:00:00Z" }
+      ],
+      "credit_cards" => [
+        { "brand" => "visa",       "last4" => "4242", "exp_month" => 12, "exp_year" => 2028, "primary" => true },
+        { "brand" => "mastercard", "last4" => "8888", "exp_month" => 9,  "exp_year" => 2027, "primary" => false }
+      ]
+    }
+  },
+  99 => {
+    "id" => 99, "name" => "Sunrise Cafe", "tier" => "starter",
+    "owner_user_id" => 44, "created_at" => "2025-01-10T09:00:00Z",
+    "stripe_customer_id" => "cus_sunrise99",
+    "subscription" => {
+      "status" => "active",
+      "started_at" => "2025-01-10T09:00:00Z",
+      "renews_at" => "2026-07-01T00:00:00Z"
+    },
+    "locations" => [
+      { "id" => 88, "name" => "Sunrise Cafe — Downtown" }
+    ],
+    "payment_attempts" => [
+      { "id" => 202, "amount_cents" => 4900, "status" => "succeeded",
+        "attempted_at" => "2026-06-01T00:00:00Z", "failure_reason" => nil }
+    ],
+    "_merchant_profile" => {
+      "tier" => "starter", "billing_state" => "active",
+      "subscription_started_at" => "2025-01-10T09:00:00Z",
+      "subscription_renews_at" => "2026-07-01T00:00:00Z",
+      "check_entity_id" => nil,
+      "payroll_readiness" => "not_ready",
+      "missing_data_flags" => ["ein_missing", "bank_account_missing"],
+      "check_entity" => nil,
+      "payment_method" => { "last4" => "1234", "brand" => "mastercard" },
+      "recent_invoices" => [
+        { "id" => 302, "amount_cents" => 4900, "status" => "paid", "paid_at" => "2026-06-01T00:00:00Z" }
+      ]
+    },
+    "_sales_tax" => {
+      "company_id" => 99,
+      "aggregate_tax_collected_cents" => 12300,
+      "per_location" => [
+        { "location_id" => 88, "location_name" => "Sunrise Cafe — Downtown",
+          "tax_authority" => "NYC Department of Finance", "tax_id" => "NYC-99001122",
+          "exempt" => false, "last_filed_at" => "2026-04-15T00:00:00Z" }
+      ],
+      "exemptions" => []
+    },
+    "_biller" => {
+      "company_id" => 99,
+      "locations" => [{ "id" => 88, "name" => "Sunrise Cafe — Downtown" }],
+      "tier_history" => [
+        { "tier" => "starter", "started_at" => "2025-01-10T09:00:00Z", "ended_at" => nil }
+      ],
+      "credit_cards" => [
+        { "brand" => "mastercard", "last4" => "1234", "exp_month" => 3, "exp_year" => 2027, "primary" => true }
+      ]
+    }
+  }
+}
+
+LOCATIONS = {
+  42 => {
+    "id" => 42, "name" => "Acme Diner — Main St", "company_id" => 42,
+    "address" => "123 Main St, San Francisco, CA 94105",
+    "tier" => "professional", "partner_name" => "Toast POS",
+    "job_count" => 12, "archived_job_count" => 3,
+    "created_at" => "2024-03-15T09:00:00Z",
+    "users" => [
+      { "id" => 42, "name" => "Jane Doe",    "email" => "jane@hb1.test",  "role_at_location" => "manager" },
+      { "id" => 43, "name" => "Marco Reyes", "email" => "marco@hb1.test", "role_at_location" => "employee" }
+    ]
+  },
+  77 => {
+    "id" => 77, "name" => "Acme Diner — East Side", "company_id" => 42,
+    "address" => "456 Valencia St, San Francisco, CA 94103",
+    "tier" => "professional", "partner_name" => "Square",
+    "job_count" => 8, "archived_job_count" => 0,
+    "created_at" => "2025-01-10T09:00:00Z",
+    "users" => [
+      { "id" => 44, "name" => "Priya Kapoor", "email" => "priya@hb1.test", "role_at_location" => "manager" }
+    ]
+  },
+  88 => {
+    "id" => 88, "name" => "Sunrise Cafe — Downtown", "company_id" => 99,
+    "address" => "789 Broadway, New York, NY 10003",
+    "tier" => "starter", "partner_name" => nil,
+    "job_count" => 5, "archived_job_count" => 1,
+    "created_at" => "2025-01-10T09:00:00Z",
+    "users" => [
+      { "id" => 44, "name" => "Priya Kapoor", "email" => "priya@hb1.test", "role_at_location" => "manager" }
+    ]
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def now_iso
+  Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+end
+
+def json_response(res, status, body)
+  res.status = status
+  res["Content-Type"] = "application/json"
+  res.body = body.to_json
+end
+
+def search(collection, q, *fields)
+  return collection.values if q.nil? || q.strip.empty?
+  q_down = q.downcase
+  collection.values.select { |r| fields.any? { |f| r[f].to_s.downcase.include?(q_down) } }
+end
+
+# ---------------------------------------------------------------------------
+# Router
+# ---------------------------------------------------------------------------
+
+server = WEBrick::HTTPServer.new(
+  Port: 9999,
+  Logger: WEBrick::Log.new(File::NULL),
+  AccessLog: []
+)
+
+server.mount_proc "/" do |req, res|
+  method = req.request_method
+  path   = req.path.chomp("/")
+  params = req.query
+
+  # Users — search
+  if method == "GET" && path == "/api/rpa_api/v1/users"
+    json_response(res, 200, search(USERS, params["q"], "full_name", "email"))
+
+  # Users — show
+  elsif method == "GET" && (m = path.match(%r{\A/api/rpa_api/v1/users/(\d+)\z}))
+    user = USERS[m[1].to_i]
+    user ? json_response(res, 200, user) : json_response(res, 404, { "error" => "not found" })
+
+  # Users — update
+  elsif method == "PATCH" && (m = path.match(%r{\A/api/rpa_api/v1/users/(\d+)\z}))
+    user = USERS[m[1].to_i]
+    if user
+      body = JSON.parse(req.body || "{}")
+      %w[email phone full_name].each { |f| user[f] = body[f] if body.key?(f) }
+      json_response(res, 200, user)
+    else
+      json_response(res, 404, { "error" => "not found" })
+    end
+
+  # Users — verification SMS
+  elsif method == "POST" && (m = path.match(%r{\A/api/rpa_api/v1/users/(\d+)/verification_sms\z}))
+    USERS[m[1].to_i] ?
+      json_response(res, 201, { "sent_at" => now_iso, "provider_request_id" => "twilio-#{SecureRandom.hex(6)}" }) :
+      json_response(res, 404, { "error" => "not found" })
+
+  # Users — verification email
+  elsif method == "POST" && (m = path.match(%r{\A/api/rpa_api/v1/users/(\d+)/verification_email\z}))
+    user = USERS[m[1].to_i]
+    user ?
+      json_response(res, 201, { "sent_at" => now_iso, "provider_request_id" => "sg-#{SecureRandom.hex(6)}", "to_email" => user["email"] }) :
+      json_response(res, 404, { "error" => "not found" })
+
+  # Users — impersonation token
+  elsif method == "POST" && (m = path.match(%r{\A/api/rpa_api/v1/users/(\d+)/impersonation_token\z}))
+    user = USERS[m[1].to_i]
+    user ?
+      json_response(res, 201, { "url" => "http://localhost:9999/login_as/#{m[1]}/#{SecureRandom.hex(12)}", "expires_at" => (Time.now.utc + 600).strftime("%Y-%m-%dT%H:%M:%SZ") }) :
+      json_response(res, 404, { "error" => "not found" })
+
+  # Companies — search
+  elsif method == "GET" && path == "/api/rpa_api/v1/companies"
+    json_response(res, 200, search(COMPANIES, params["q"], "name").map { |c| c.reject { |k, _| k.start_with?("_") } })
+
+  # Companies — show
+  elsif method == "GET" && (m = path.match(%r{\A/api/rpa_api/v1/companies/(\d+)\z}))
+    company = COMPANIES[m[1].to_i]
+    company ?
+      json_response(res, 200, company.reject { |k, _| k.start_with?("_") }) :
+      json_response(res, 404, { "error" => "not found" })
+
+  # Companies — merchant profile
+  elsif method == "GET" && (m = path.match(%r{\A/api/rpa_api/v1/companies/(\d+)/merchant_profile\z}))
+    company = COMPANIES[m[1].to_i]
+    company ?
+      json_response(res, 200, company["_merchant_profile"]) :
+      json_response(res, 404, { "error" => "not found" })
+
+  # Companies — sales tax
+  elsif method == "GET" && (m = path.match(%r{\A/api/rpa_api/v1/companies/(\d+)/sales_tax\z}))
+    company = COMPANIES[m[1].to_i]
+    company ?
+      json_response(res, 200, company["_sales_tax"]) :
+      json_response(res, 404, { "error" => "not found" })
+
+  # Companies — biller
+  elsif method == "GET" && (m = path.match(%r{\A/api/rpa_api/v1/companies/(\d+)/biller\z}))
+    company = COMPANIES[m[1].to_i]
+    company ?
+      json_response(res, 200, company["_biller"]) :
+      json_response(res, 404, { "error" => "not found" })
+
+  # Companies — change billing tier
+  elsif method == "POST" && (m = path.match(%r{\A/api/rpa_api/v1/companies/(\d+)/billing_tier\z}))
+    company = COMPANIES[m[1].to_i]
+    body    = JSON.parse(req.body || "{}")
+    to_tier = body["to_tier"]
+    if company.nil?
+      json_response(res, 404, { "error" => "not found" })
+    elsif to_tier.nil? || to_tier.strip.empty?
+      json_response(res, 400, { "error" => "to_tier is required" })
+    else
+      from_tier    = company["tier"]
+      effective_at = now_iso
+      company["tier"] = to_tier
+      company["_merchant_profile"]["tier"] = to_tier
+      company["_biller"]["tier_history"].each { |e| e["ended_at"] = effective_at if e["ended_at"].nil? }
+      company["_biller"]["tier_history"].unshift("tier" => to_tier, "started_at" => effective_at, "ended_at" => nil)
+      json_response(res, 201, { "from_tier" => from_tier, "to_tier" => to_tier, "effective_at" => effective_at })
+    end
+
+  # Locations — search
+  elsif method == "GET" && path == "/api/rpa_api/v1/locations"
+    json_response(res, 200, search(LOCATIONS, params["q"], "name"))
+
+  # Locations — show
+  elsif method == "GET" && (m = path.match(%r{\A/api/rpa_api/v1/locations/(\d+)\z}))
+    loc = LOCATIONS[m[1].to_i]
+    loc ? json_response(res, 200, loc) : json_response(res, 404, { "error" => "not found" })
+
+  # Locations — archive jobs
+  elsif method == "POST" && (m = path.match(%r{\A/api/rpa_api/v1/locations/(\d+)/archive_jobs\z}))
+    loc = LOCATIONS[m[1].to_i]
+    if loc
+      count = loc["job_count"]
+      loc["archived_job_count"] += count
+      loc["job_count"] = 0
+      json_response(res, 201, { "archived_job_count" => count, "archived_at" => now_iso })
+    else
+      json_response(res, 404, { "error" => "not found" })
+    end
+
+  # Locations — unarchive jobs
+  elsif method == "POST" && (m = path.match(%r{\A/api/rpa_api/v1/locations/(\d+)/unarchive_jobs\z}))
+    loc = LOCATIONS[m[1].to_i]
+    if loc
+      count = loc["archived_job_count"]
+      loc["job_count"] += count
+      loc["archived_job_count"] = 0
+      json_response(res, 201, { "unarchived_job_count" => count, "unarchived_at" => now_iso })
+    else
+      json_response(res, 404, { "error" => "not found" })
+    end
+
+  # Impersonation landing page
+  elsif method == "GET" && (m = path.match(%r{\A/login_as/(\d+)/}))
+    user = USERS[m[1].to_i]
+    name  = user ? user["full_name"] : "Unknown User"
+    email = user ? user["email"]     : ""
+    phone = user ? user["phone"]     : ""
+    mfa   = user ? user["mfa_status"] : "unknown"
+    bank  = user ? user["bank_account_present"] : false
+
+    memberships = user ? user["memberships"] : []
+    jobs        = user ? user["jobs"]        : []
+
+    membership_rows = memberships.map { |mem|
+      "<tr><td>#{mem['company_name']}</td><td>#{mem['location_name']}</td><td><span class='role-chip'>#{mem['role_at_location']}</span></td><td class='muted'>#{mem['since'][0,10]}</td></tr>"
+    }.join
+
+    job_rows = jobs.map { |j|
+      date = j["scheduled_for"] ? j["scheduled_for"][0,10] : "—"
+      "<tr><td>#{j['title']}</td><td>#{j['location_name']}</td><td><span class='status-chip #{j['status']}'>#{j['status']}</span></td><td class='muted'>#{date}</td></tr>"
+    }.join
+
+    mfa_color = mfa == "enabled" ? "#16a34a" : "#dc2626"
+    bank_color = bank ? "#16a34a" : "#6b7280"
+    bank_label = bank ? "On file" : "Not on file"
+
+    res.status = 200
+    res["Content-Type"] = "text/html"
+    res.body = <<~HTML
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>#{name} — Homebase</title>
+        <style>
+          *, *::before, *::after { box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                 background: #f3f4f6; margin: 0; color: #111827; }
+          .topbar { background: #111827; color: white; padding: 0 32px;
+                    height: 52px; display: flex; align-items: center; justify-content: space-between; }
+          .topbar-logo { font-weight: 700; font-size: 16px; letter-spacing: -.02em; }
+          .impersonation-banner { background: #fef3c7; border-bottom: 1px solid #fde68a;
+                                  padding: 10px 32px; display: flex; align-items: center; gap: 10px;
+                                  font-size: 13px; color: #92400e; }
+          .impersonation-banner strong { font-weight: 600; }
+          .banner-dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;
+                        flex-shrink: 0; animation: pulse 2s infinite; }
+          @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+          .container { max-width: 900px; margin: 32px auto; padding: 0 24px; }
+          .profile-card { background: white; border-radius: 10px; padding: 28px 32px;
+                          box-shadow: 0 1px 2px rgba(0,0,0,.06); display: flex;
+                          align-items: center; gap: 24px; margin-bottom: 24px; }
+          .avatar { width: 64px; height: 64px; border-radius: 50%; background: #e5e7eb;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 22px; font-weight: 700; color: #6b7280; flex-shrink: 0; }
+          .profile-info h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+          .profile-info .email { font-size: 14px; color: #6b7280; margin: 0 0 12px; }
+          .meta-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+          .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
+                  font-weight: 500; padding: 3px 10px; border-radius: 9999px;
+                  background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+          .chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+          .section { background: white; border-radius: 10px;
+                     box-shadow: 0 1px 2px rgba(0,0,0,.06); margin-bottom: 24px; overflow: hidden; }
+          .section-header { padding: 16px 24px; border-bottom: 1px solid #f3f4f6;
+                            font-size: 13px; font-weight: 600; color: #374151;
+                            text-transform: uppercase; letter-spacing: .05em; }
+          table { width: 100%; border-collapse: collapse; }
+          td { padding: 12px 24px; font-size: 14px; border-bottom: 1px solid #f9fafb; }
+          tr:last-child td { border-bottom: none; }
+          .muted { color: #9ca3af; font-size: 13px; }
+          .role-chip { background: #ede9fe; color: #6d28d9; font-size: 11px; font-weight: 600;
+                       padding: 2px 8px; border-radius: 9999px; text-transform: capitalize; }
+          .status-chip { font-size: 11px; font-weight: 600; padding: 2px 8px;
+                         border-radius: 9999px; text-transform: capitalize; }
+          .status-chip.active { background: #dcfce7; color: #16a34a; }
+          .status-chip.archived { background: #f3f4f6; color: #6b7280; }
+          .empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="topbar">
+          <span class="topbar-logo">Homebase</span>
+          <span style="font-size:13px;color:#9ca3af;">#{email}</span>
+        </div>
+        <div class="impersonation-banner">
+          <div class="banner-dot"></div>
+          <span>Impersonation session active — logged in as <strong>#{name}</strong>. Actions taken here are not audited.</span>
+        </div>
+        <div class="container">
+
+          <div class="profile-card">
+            <div class="avatar">#{name.split.map(&:chr).first(2).join.upcase}</div>
+            <div class="profile-info">
+              <h1>#{name}</h1>
+              <div class="email">#{email}</div>
+              <div class="meta-chips">
+                <span class="chip">
+                  <span class="dot" style="background:#{mfa_color}"></span>
+                  MFA #{mfa}
+                </span>
+                <span class="chip">
+                  <span class="dot" style="background:#{bank_color}"></span>
+                  Bank #{bank_label}
+                </span>
+                #{phone.empty? ? '' : "<span class='chip'>#{phone}</span>"}
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">Locations &amp; Memberships</div>
+            #{memberships.empty? ? "<div class='empty'>No memberships</div>" : "<table>#{membership_rows}</table>"}
+          </div>
+
+          <div class="section">
+            <div class="section-header">Upcoming Shifts</div>
+            #{jobs.empty? ? "<div class='empty'>No upcoming shifts</div>" : "<table>#{job_rows}</table>"}
+          </div>
+
+        </div>
+      </body>
+      </html>
+    HTML
+
+  else
+    json_response(res, 404, { "error" => "not found" })
+  end
+end
+
+trap("INT")  { server.shutdown }
+trap("TERM") { server.shutdown }
+
+$stdout.puts "[stub-hb1] listening on http://localhost:9999"
+$stdout.flush
+server.start
