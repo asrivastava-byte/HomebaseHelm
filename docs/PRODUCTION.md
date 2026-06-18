@@ -112,7 +112,7 @@ See `docs/AUTH.md` for the full auth setup.
 Audit events are written to both PostgreSQL and stdout as JSON lines. In Datadog:
 
 - **Log source:** `source:rails` — filter on `event:helm.audit` to see all admin actions
-- **Alert on impersonation:** `event:helm.audit AND action:user.impersonation_started` — alert if rate spikes
+- **Alert on impersonation:** `event:helm.audit AND (action:user.impersonation_started OR action:location.user_impersonated)` — alert if rate spikes
 - **Alert on billing changes:** `event:helm.audit AND action:company.billing_tier_changed`
 - **Alert on 5xx rate:** `status:error` from the Rails process
 

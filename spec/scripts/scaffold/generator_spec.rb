@@ -27,6 +27,15 @@ RSpec.describe Scaffold::Generator do
           permissions:
             - account.view_user
     YAML
+    File.write(File.join(dir, "app", "api", "helm_api", "v1", "base.rb"), <<~RUBY)
+      module HelmApi
+        module V1
+          class Base < Grape::API
+            mount HelmApi::V1::SessionApi
+          end
+        end
+      end
+    RUBY
   end
 
   it "writes all expected files for company_merchant/company" do
@@ -76,6 +85,16 @@ RSpec.describe Scaffold::Generator do
       2.times { described_class.new(root: dir, naming: n).run! }
       yml = File.read(File.join(dir, "config", "permissions.yml"))
       expect(yml.scan("account.view_company").count).to eq(1)
+    end
+  end
+
+  it "inserts the mount line into base.rb when scaffolding a new workflow" do
+    Dir.mktmpdir do |dir|
+      stage(dir)
+      n = Scaffold::Naming.new(workflow: "company_merchant", resource: "company")
+      described_class.new(root: dir, naming: n).run!
+      base_path = File.join(dir, "app", "api", "helm_api", "v1", "base.rb")
+      expect(File.read(base_path)).to include("mount HelmApi::V1::#{n.api_class}")
     end
   end
 
