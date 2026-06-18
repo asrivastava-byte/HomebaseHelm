@@ -25,7 +25,7 @@ module HelmApi
 
         route_param :id, type: Integer do
           get do
-            check_permission!("account.view_location", scope: { id: params[:id] })
+            check_permission!("account.view_location", scope: { location_id: params[:id] })
             obj = Hb1Client::Locations.show(params[:id])
             present obj, with: Entities::Location, role: current_principal
           end
