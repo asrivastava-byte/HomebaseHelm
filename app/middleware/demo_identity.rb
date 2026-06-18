@@ -1,5 +1,10 @@
 class DemoIdentity
   def initialize(app)
+    if Rails.env.production?
+      raise "DemoIdentity is a development-only stub. " \
+            "In production, replace it with a Stytch JWT middleware. " \
+            "See docs/AUTH.md for the swap guide."
+    end
     @app = app
   end
 
