@@ -33,16 +33,17 @@ Browser on `http://localhost:5173`, RoleSwitcher set to `cs_t1_agent`, User Look
 ## 0:00 — Frame it (30 sec)
 
 **Say:**
-> "Homebase Helm replaces our admin panel for the three workflows that are **84% of admin activity** — User Lookup, Company / Merchant, Location Management. One sentence: **this is workflows, not a UI for ActiveRecord** — every action is a permission, every action is audited, and no one has god mode.
+> "Homebase Helm replaces our admin panel for the three workflows 
+ **this is platform that supports workflows, not a UI for ActiveRecord** — every action is a permission, every action is audited, and no one has god mode.
 >
 > Three things to know up front.
 >
-> **One — this is an AI-led project.** I wrote a spec doc; an AI agent (Claude Code with the Superpowers skill suite) decomposed it into five tested implementation plans and built every line of code against them — strict tests-first, atomic commits, scaffold for handoff. I made the product calls; the AI did the long-tail engineering.
+> **One — this is an AI-led project.** I wrote a spec doc; and an implementaion plan,  AI agent (Claude Code with the Superpowers skill suite) decomposed it into five tested implementation plans and built every line of code against them — strict tests-first, atomic commits, scaffold for handoff. I made the product calls; the AI did the long-tail engineering.
 >
 > **Two — the permission model is config, not code.** Everything you're about to see — who can view PII, who can impersonate, who can edit — lives in one YAML file. A CS Tier 4 leader can change it without an engineering ticket.
 >
-> **Three — HB1 stays the source of truth.** Helm is a standalone microservice — its own Rails process, its own Postgres — but it stores zero domain data. Every user, company, location, and job lives on HB1; Helm reads and writes over REST. What Helm *does* own is the admin layer: who the admin is, what they did, and the audit trail of every action."
-
+> **Three — HB1 stays the source of truth.** Helm is a standalone microservice —  Helm reads and writes over REST. What Helm *does* own is the admin layer: who the admin is, what they did, and the audit trail of every action."
+God mode is GONE. Impersonation is an action — permission-gated, person-attributed, and audited before the tab opens.
 ---
 
 ## 0:30 — Workflow 1: User Lookup + PII gating (40 sec)

@@ -465,7 +465,7 @@ server.mount_proc "/" do |req, res|
         </div>
         <div class="impersonation-banner">
           <div class="banner-dot"></div>
-          <span>Impersonation session active — logged in as <strong>#{name}</strong>. Actions taken here are not audited.</span>
+          <span>Impersonation session active — logged in as <strong>#{name}</strong>.</span>
         </div>
         <div class="container">
 
