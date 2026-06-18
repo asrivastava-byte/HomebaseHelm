@@ -31,6 +31,7 @@ module Scaffold
       render_helm_templates!
       copy_hb1_templates!
       append_permissions!
+      mount_api_in_base!
     end
 
     private
@@ -76,6 +77,36 @@ module Scaffold
     def binding_for_template
       n = @n
       Kernel.binding
+    end
+
+    def mount_api_in_base!
+      base_path = File.join(@root, "app/api/helm_api/v1/base.rb")
+      unless File.exist?(base_path)
+        warn "[scaffold] base.rb not found at #{base_path} — add `mount HelmApi::V1::#{@n.api_class}` manually."
+        return
+      end
+
+      content    = File.read(base_path)
+      mount_line = "      mount HelmApi::V1::#{@n.api_class}"
+
+      if content.include?(mount_line)
+        puts "[scaffold] #{mount_line.strip} already present in base.rb — skipping."
+        return
+      end
+
+      # Insert before the final `end` of the Base class block.
+      # Uses \s* (not \s+) because the outermost `end` has no leading whitespace.
+      updated = content.sub(/^(      mount HelmApi::V1::\w+)\n(\s*end\n\s*end\n\s*end\n\z)/m) do
+        "#{$1}\n#{mount_line}\n#{$2}"
+      end
+
+      if updated == content
+        warn "[scaffold] Could not find insertion point in base.rb — add `#{mount_line.strip}` manually."
+        return
+      end
+
+      File.write(base_path, updated)
+      puts "[scaffold] Mounted #{@n.api_class} in base.rb."
     end
   end
 end
