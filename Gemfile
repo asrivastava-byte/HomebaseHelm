@@ -9,7 +9,7 @@ gem "grape-entity"
 gem "faraday"
 gem "rack-cors"
 gem "lograge"
-gem "datadog", "~> 2.0", require: false
+gem "datadog", "~> 2.36", require: false
 
 gem "tzinfo-data", platforms: %i[windows jruby]
 gem "bootsnap", require: false
