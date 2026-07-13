@@ -21,7 +21,7 @@ group :development, :test do
   gem "dotenv-rails"
   gem "rspec-rails", "~> 8.0"
   gem "factory_bot_rails", "~> 6.5"
-  gem "rubocop-rails", "~> 2.35"
+  gem "rubocop-rails", "~> 2.36"
 end
 
 group :test do
